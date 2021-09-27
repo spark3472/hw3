@@ -1,10 +1,6 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <pthread.h>
 
 #define TRUE  1;
 #define FALSE 0;
