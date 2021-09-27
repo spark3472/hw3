@@ -10,6 +10,10 @@ granting credits easier. You should write this document especially well if you a
 things working completely but have the bones right.
 
 <h2>Introduction</h2>
+<h3>Data Structure</h3>
+<h3>Parser</h3>
+<h3>Signal Handling</h3>
+<h3>Command Execution</h3>
 <h2>Features</h2>
 <h3>Fully Implemented</h3>
 <h3>Partially Implemented</h3>
