@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -5,6 +6,11 @@
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+=======
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+>>>>>>> b814c4d22d3428ebcde7da8bc1eaa94a0fcc1faf
 
 #define TRUE  1;
 #define FALSE 0;
