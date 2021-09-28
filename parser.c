@@ -29,31 +29,32 @@ char** toks;
 int a = 0;
 char* get_next_token(TOKENIZER *v){
 	//if current char is a delimiter, just return it
-//else go until next char is a delimiter
-//return the substring without white spaces
-//returned strings are malloced copies
-//return NULL when string ends
+  //else go until next char is a delimiter
+  //return the substring without white spaces
+  //returned strings are malloced copies
+  //return NULL when string ends
   
   char* string;
   int b = 0;
   if(*(v->pos) == '\0'){
     return NULL;
   }
+  
+  if (*(v->pos) == ' '){
+    a++;
+    v->pos++;
+  }
   if (*(v->pos) == '&'||*(v->pos)==';'){
     b++;
     v->pos++;
-    string = (char*) malloc((b+1)*sizeof(char));
-    memcpy(string, &v->str[a], b);
-    a += b;
-    return string;
-  }
-
-  while(*(v->pos) != '\0'){
-    if (*(v->pos) == '&'||*(v->pos) == ';'){
-      break;
-    }else{
-      v->pos++;
-      b++;
+  }else {
+    while(*(v->pos) != '\0'){
+      if (*(v->pos) == '&'||*(v->pos) == ';'|| *(v->pos)== ' '){
+        break;
+        }else{
+          v->pos++;
+          b++;
+          }
     }
   }
   string = (char*) malloc((b+1)*sizeof(char));
@@ -97,12 +98,14 @@ int parser(){
   while((string = get_next_token(&t)) != NULL){
     n++;
   }
+  printf("%d\n", n);
   //allocate pointers to tokens +1 for the ending NULL
   toks = (char**) malloc(sizeof(char*)*(n+1));
   //start from beginning again
   u = init_tokenizer(line);
   a = 0;
-  for (int i = 0; i < n; i++){
+ 
+  for(int i = 0; i < n; i++){
     char* string = get_next_token(&u);
     toks[i] = (char*)malloc(strlen(string)*sizeof(char));
     strcpy(toks[i], string);
@@ -116,7 +119,7 @@ int main(){
   while(1){
     number = parser();
     for (int i = 0; i < number; i++){
-      printf("%s\n", toks[i]);
+      printf("%-8s %d\n", toks[i], i);
     }
   }
 }
