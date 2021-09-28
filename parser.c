@@ -98,7 +98,6 @@ int parser(){
   while((string = get_next_token(&t)) != NULL){
     n++;
   }
-  printf("%d\n", n);
   //allocate pointers to tokens +1 for the ending NULL
   toks = (char**) malloc(sizeof(char*)*(n+1));
   //start from beginning again
@@ -119,7 +118,7 @@ int main(){
   while(1){
     number = parser();
     for (int i = 0; i < number; i++){
-      printf("%-8s %d\n", toks[i], i);
+      printf("%s\n", toks[i]);
     }
   }
 }
