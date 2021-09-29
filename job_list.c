@@ -1,6 +1,9 @@
 /* QUESTIONS:
     - do you have to malloc char** (to make Process)?
     - how to get status (and see if running or stopped)
+    - add failure condition for push? (cases where it doesn't work?)
+    - is semaphore mutual exclusion implemented correctly?
+    - add mutual exclusion for printing too?
 */
 
 /*
@@ -9,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 
 /* Process struct modified from https://www.gnu.org/software/libc/manual/html_node/Data-Structures.html */
@@ -24,11 +28,13 @@ typedef struct Process {
 
 //holds the JobList struct
 typedef struct {
-    //most recent job
-    Process* head;
-    //number of background jobs currently running
-    int length;
+  //most recent job
+  Process* head;
+  //number of background jobs currently running
+  int length;
+  pthread_mutex_t mutex;
 } JobList;
+
 
 /* Creates a process
  * @param pid The PID of the process
@@ -59,34 +65,87 @@ JobList* makeJobList() {
     JobList* jobList = malloc(1 * sizeof(JobList));
     jobList->length = 0;
     jobList->head = NULL;
+    pthread_mutex_init(&(jobList->mutex), NULL);
     return jobList;
 }
 
 /* Takes a joblist and process, and puts the process on the front of the jobList
  * @param jobList The joblist to update
  * @param newProcess the process to add
- * @return The updated Joblist
+ * @return Success or failure
  */
-JobList* push(JobList* jobList, Process* newProcess) {
-    // set the `.next` pointer of the new Process to point to the current
-    // first Process of the list.
-    newProcess->next = jobList->head;
-    //updates the head of the joblist
-    jobList->head = newProcess;
-
-    return jobList;
+int push(JobList* jobList, Process* newProcess) {
+  // set the `.next` pointer of the new Process to point to the current
+  // first Process of the list.
+  pthread_mutex_lock(&(jobList->mutex));
+  newProcess->next = jobList->head;
+  //updates the head of the joblist
+  jobList->head = newProcess;
+  jobList->length += 1;
+  pthread_mutex_unlock(&(jobList->mutex));
+  
+  return EXIT_SUCCESS;
 }
+
+/* Retrieves the most recently-added process from the joblist
+ * @return The most recent process
+ */
+Process* getMostRecent(JobList* jobList) {
+  return jobList->head;
+}
+
+/* Removes the most recently-added process from the joblist
+ * @return The most recent process
+ */
+Process* removeMostRecent(JobList* jobList) {
+  pthread_mutex_lock(&(jobList->mutex));
+  if(jobList->length <= 0) {
+    return NULL;
+  }
+  Process* mostRecent = jobList->head;
+  jobList->head = mostRecent->next;
+  jobList->length--;
+  pthread_mutex_unlock(&(jobList->mutex));
+  return mostRecent;
+}
+
+/* Remove a process from the job list
+ * @param pid The pid of the process to remove
+ * @return Success or failure
+ */
+int removeJob(JobList* jobList, pid_t targetPid) {
+  pthread_mutex_lock(&(jobList->mutex));
+  if(jobList->length <= 0) {
+    return EXIT_FAILURE;
+  }
+  Process* ptr = jobList->head;
+  if(ptr->pid == targetPid) {
+    removeMostRecent(jobList);
+    return EXIT_SUCCESS;
+  }
+  while(ptr->next != NULL) {
+    if(ptr->next->pid == targetPid) {
+      ptr->next = ptr->next->next;
+      jobList->length--;
+      return EXIT_SUCCESS;
+    }
+    ptr = ptr->next;
+  }
+
+  pthread_mutex_unlock(&(jobList->mutex));
+  return EXIT_FAILURE;
+}
+
 
 /* Prints a joblist
  * @param jobList The joblist to print
  */
 void printList(JobList* jobList){
     Process* ptr = jobList->head;
-    while (ptr)
-    {
-        printf("Job number: %d, command line: ", ptr->jobNum);
+    while (ptr) {
+        printf("Job number: %d, command line:", ptr->jobNum);
         for(int i = 0; i < ptr->numArgs; i++){
-            printf("%s ", ptr->argv[i]);
+            printf(" %s", ptr->argv[i]);
         }
         printf(", status: %d\n", ptr->status);
         ptr = ptr->next;
@@ -119,13 +178,28 @@ int main(void) {
     command[0] = "cat";
     command[1] = "test.txt";
     // Makes some test processes
-    Process* p1 = makeProcess(1, 0, command, 2, 0);
-    Process* p2 = makeProcess(2, 0, command, 2, 1);
+    Process* p1 = makeProcess(1, 0, command, 2, 1);
+    Process* p2 = makeProcess(2, 0, command, 2, 2);
+    Process* p3 = makeProcess(3, 0, command, 2, 3);
 
     push(jobList, p1);
     push(jobList, p2);
  
     // print linked list
+    printList(jobList);
+
+    printf("Jobnum of most recent: %d\n", getMostRecent(jobList)->jobNum);
+    removeMostRecent(jobList);
+
+    printf("\nRemoved first item\n");
+    printList(jobList);
+
+    push(jobList, p3);
+
+    printf("\nAdded p3:\n");
+    printList(jobList);
+
+    printf("\nTrying to remove job 3: %d\n", removeJob(jobList, 3)==EXIT_SUCCESS);
     printList(jobList);
     
     freeJobList(jobList);
