@@ -12,14 +12,17 @@
 #define TRUE  1;
 #define FALSE 0;
 
+//global array toks
+char** toks;
+//start of current command section (breaks up & and ; lines)
+char** traverser;
+
 /***** Code outline for parser and tokenizer from HW2Feedback slides *****/
 //holds a string and the current position in it
 typedef struct tokenizer{
   char* str;
   char *pos;
 } TOKENIZER;
-//global array toks
-char** toks;
 
 /* Gets the next delimiter or the string between delimiters
  * @param tokenizer
@@ -57,8 +60,9 @@ char* get_next_token(TOKENIZER *v){
           }
     }
   }
-  string = (char*) malloc((b+1)*sizeof(char));
+  string = (char*)malloc((b+1)*sizeof(char));
   memcpy(string, &v->str[a], b);
+  string[b] = '\0';
   a += b;
   return string;
 }
@@ -106,19 +110,26 @@ int parser(){
  
   for(int i = 0; i < n; i++){
     char* string = get_next_token(&u);
-    toks[i] = (char*)malloc(strlen(string)*sizeof(char));
+    toks[i] = (char*)malloc((strlen(string)+1)*sizeof(char));
     strcpy(toks[i], string);
+    free(string);
   }
   free(line);
   return n;
 }
 
 int main(){
-  int number;
+  
+  int tokensRead;
   while(1){
-    number = parser();
-    for (int i = 0; i < number; i++){
+    tokensRead = parser();
+    for (int i = 0; i < tokensRead; i++){
       printf("%s\n", toks[i]);
+      
+      if(0 == strcmp(toks[i], "exit")) {
+        exit(0);
+      }
+
     }
   }
 }

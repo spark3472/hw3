@@ -106,7 +106,7 @@ int parser(){
  
   for(int i = 0; i < n; i++){
     char* string = get_next_token(&u);
-    toks[i] = (char*)malloc(strlen(string)*sizeof(char));
+    toks[i] = (char*)malloc((strlen(string)+1)*sizeof(char));
     strcpy(toks[i], string);
   }
   free(line);
