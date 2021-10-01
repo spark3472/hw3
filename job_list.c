@@ -4,6 +4,8 @@
     - add failure condition for push? (cases where it doesn't work?)
     - is semaphore mutual exclusion implemented correctly?
     - add mutual exclusion for printing too?
+  Removing a process by job number currently frees it, but removing the most recent
+    job doesn't free it in-method. Must do manually
 */
 
 /*
@@ -12,7 +14,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 
 /* Process struct modified from https://www.gnu.org/software/libc/manual/html_node/Data-Structures.html */
@@ -32,7 +33,6 @@ typedef struct {
   Process* head;
   //number of background jobs currently running
   int length;
-  pthread_mutex_t mutex;
 } JobList;
 
 
@@ -65,7 +65,6 @@ JobList* makeJobList() {
     JobList* jobList = malloc(1 * sizeof(JobList));
     jobList->length = 0;
     jobList->head = NULL;
-    pthread_mutex_init(&(jobList->mutex), NULL);
     return jobList;
 }
 
@@ -77,12 +76,10 @@ JobList* makeJobList() {
 int push(JobList* jobList, Process* newProcess) {
   // set the `.next` pointer of the new Process to point to the current
   // first Process of the list.
-  pthread_mutex_lock(&(jobList->mutex));
   newProcess->next = jobList->head;
   //updates the head of the joblist
   jobList->head = newProcess;
   jobList->length += 1;
-  pthread_mutex_unlock(&(jobList->mutex));
   
   return EXIT_SUCCESS;
 }
@@ -94,45 +91,44 @@ Process* getMostRecent(JobList* jobList) {
   return jobList->head;
 }
 
-/* Removes the most recently-added process from the joblist
+/* Removes the most recently-added process from the joblist (doesn't free it)
  * @return The most recent process
  */
 Process* removeMostRecent(JobList* jobList) {
-  pthread_mutex_lock(&(jobList->mutex));
   if(jobList->length <= 0) {
     return NULL;
   }
   Process* mostRecent = jobList->head;
   jobList->head = mostRecent->next;
   jobList->length--;
-  pthread_mutex_unlock(&(jobList->mutex));
   return mostRecent;
 }
 
-/* Remove a process from the job list
+/* Remove a process from the job list and frees it
  * @param pid The pid of the process to remove
  * @return Success or failure
  */
 int removeJob(JobList* jobList, pid_t targetPid) {
-  pthread_mutex_lock(&(jobList->mutex));
   if(jobList->length <= 0) {
     return EXIT_FAILURE;
   }
   Process* ptr = jobList->head;
   if(ptr->pid == targetPid) {
-    removeMostRecent(jobList);
+    Process* toRemove = removeMostRecent(jobList);
+    free(toRemove);
     return EXIT_SUCCESS;
   }
   while(ptr->next != NULL) {
     if(ptr->next->pid == targetPid) {
-      ptr->next = ptr->next->next;
+      Process* toRemove = ptr->next;
+      ptr->next = toRemove->next;
       jobList->length--;
+      free(toRemove);
       return EXIT_SUCCESS;
     }
     ptr = ptr->next;
   }
 
-  pthread_mutex_unlock(&(jobList->mutex));
   return EXIT_FAILURE;
 }
 
@@ -189,7 +185,8 @@ int main(void) {
     printList(jobList);
 
     printf("Jobnum of most recent: %d\n", getMostRecent(jobList)->jobNum);
-    removeMostRecent(jobList);
+    Process* mostRecent = removeMostRecent(jobList);
+    free(mostRecent);
 
     printf("\nRemoved first item\n");
     printList(jobList);
