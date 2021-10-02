@@ -1,5 +1,4 @@
-//#include <unistd.h>
-#include <io.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +23,7 @@ typedef struct Process {
   char **argv;            	/* for exec */
   int numArgs;              /* number of arguments */
   pid_t pid;              	/* process ID */
+  char suspended;           /* process suspended? */
   int status;             	/* reported status value */
   int jobNum;			    /* the job number */
   struct termios termSettings;  /*Terminal settings*/
@@ -77,13 +77,14 @@ JobList* makeJobList() {
  * @return Success or failure
  */
 int push(JobList* jobList, Process* newProcess) {
+  sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   // set the `.next` pointer of the new Process to point to the current
   // first Process of the list.
   newProcess->next = jobList->head;
   //updates the head of the joblist
   jobList->head = newProcess;
   jobList->length += 1;
-  
+  sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
   return EXIT_SUCCESS;
 }
 
@@ -98,12 +99,14 @@ Process* getMostRecent(JobList* jobList) {
  * @return The most recent process
  */
 Process* removeMostRecent(JobList* jobList) {
+  sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   if(jobList->length <= 0) {
     return NULL;
   }
   Process* mostRecent = jobList->head;
   jobList->head = mostRecent->next;
   jobList->length--;
+  sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
   return mostRecent;
 }
 
@@ -123,9 +126,11 @@ int removeJob(JobList* jobList, pid_t targetPid) {
   }
   while(ptr->next != NULL) {
     if(ptr->next->pid == targetPid) {
+      sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
       Process* toRemove = ptr->next;
       ptr->next = toRemove->next;
       jobList->length--;
+      sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
       free(toRemove);
       return EXIT_SUCCESS;
     }
@@ -138,6 +143,7 @@ int removeJob(JobList* jobList, pid_t targetPid) {
 /* Prints a joblist
  * @param jobList The joblist to print
  */
+//block signal here too???
 void printList(JobList* jobList){
     Process* ptr = jobList->head;
     while (ptr) {
@@ -281,6 +287,11 @@ void handler(int signo, siginfo_t* info, ) {
   //handle signal - maybe just sigchild, maybe others?
 }
 
+//signals to block in the shell
+sigset_t sigset;
+//set with just sigchld
+sigset_t sigset_sigchld;
+
 int main(){
   //puts the shell in its own process group
   setpgid();
@@ -294,7 +305,6 @@ int main(){
   sigaction(SIGCHLD, &act, NULL);
 
   //masks signals using sigprocmask() [instead of sigaction()...???]
-  sigset_t sigset;
   sigemptyset(&sigset);
   sigaddset(&sigset, SIGQUIT);
   sigaddset(&sigset, SIGTSTP);
@@ -302,6 +312,9 @@ int main(){
   sigaddset(&sigset, SIGTTOU);
   sigprocmask(SIG_SETMASK, &sigset, NULL);
   //handle SIGINT and SIGTERM? I forget
+  //add sigchld to its sigset to use later
+  sigemptyset(&sigset_sigchld);
+  sigaddset(&sigset_sigchld, SIGCHLD);
 
   //save terminal settings of shell
   struct termios shellTermSettings;
