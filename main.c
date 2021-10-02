@@ -266,32 +266,41 @@ int parser(){
   free(line);
   return n;
 }
+char** getArgs(int start, int end){
+  int args = end - start;
+  char** currentArguments = (char**) malloc(sizeof(char*)*(args+1));
+  int count = 0;
+  for (int j = start; j < end; j++){
+    strcpy(currentArguments[count], toks[j]);
+    printf("%s\n", currentArguments[count]);
+    count++;
+  }
 
+  return currentArguments;
+
+}
 int main(){
   int number;
   char** currentArguments;
+  int aftersemi = 0;
   while(1){
     number = parser();
+    int count = 0;
+    int place = 0;
+    int ampOrSemi = 0;
     for (int i = 0; i < number; i++){
-      if (toks[i] == '&'){
-        //bg yay
-      }else if (toks[i] == ';'){
-         currentArguments = (char**) malloc(sizeof(char*)*(i+1));
-         for (int j = 0; j < i; j++){
-           //
-         }
+      if (strcmp(toks[i], "&") == 0 ||strcmp(toks[i], ";") == 0){
+        ampOrSemi++;
       }
+      printf("%s\n", toks[i]);
     }
-    for (int i = 0; i < number; i++){
+    if (ampOrSemi == 0){
       pid_t pid;
       if((pid = fork()) == 0) {
         execvp(toks[0], toks);
       } else if (pid > 0) {
-      wait(NULL);
-    }
-      printf("%s\n", toks[i]);
-
-
+        wait(NULL);
+      }
     }
   }
   for (int i = 0; i < number; i++){
