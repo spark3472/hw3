@@ -1,4 +1,5 @@
-#include <unistd.h>
+//#include <unistd.h>
+#include <io.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,9 +9,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 
 #define TRUE  1;
 #define FALSE 0;
+
+
+'''*****JOBLIST*****'''
 
 /* Process struct modified from https://www.gnu.org/software/libc/manual/html_node/Data-Structures.html */
 // Data scructure to store a Process
@@ -21,6 +26,7 @@ typedef struct Process {
   pid_t pid;              	/* process ID */
   int status;             	/* reported status value */
   int jobNum;			    /* the job number */
+  struct termios termSettings;  /*Terminal settings*/
 } Process;
 
 //holds the JobList struct
@@ -50,6 +56,7 @@ Process* makeProcess(pid_t pid, int status, char** argv, int numArgs, int jobNum
     newProcess->numArgs = numArgs;
     //Malloc???
     newProcess->argv = argv;
+    newProcess->termios = NULL;
 
     return newProcess;
 }
@@ -128,7 +135,6 @@ int removeJob(JobList* jobList, pid_t targetPid) {
   return EXIT_FAILURE;
 }
 
-
 /* Prints a joblist
  * @param jobList The joblist to print
  */
@@ -165,6 +171,10 @@ void freeJobList(JobList* jobList) {
 char** toks;
 //start of current command section (breaks up & and ; lines)
 char** traverser;
+
+
+'''*****PARSER*****'''
+
 
 /***** Code outline for parser and tokenizer from HW2Feedback slides *****/
 //holds a string and the current position in it
@@ -267,9 +277,38 @@ int parser(){
   return n;
 }
 
+void handler(int signo, siginfo_t* info, ) {
+  //handle signal - maybe just sigchild, maybe others?
+}
+
 int main(){
+  //puts the shell in its own process group
+  setpgid();
   int number;
   char** currentArguments;
+
+  //maybe move into while loop? - does sigaction stuff (creates struct and handler to fill)
+  struct sigaction act = {0};
+  act.sa_sigaction = &handler;
+  //sets up handler for SIGCHLD
+  sigaction(SIGCHLD, &act, NULL);
+
+  //masks signals using sigprocmask() [instead of sigaction()...???]
+  sigset_t sigset;
+  sigemptyset(&sigset);
+  sigaddset(&sigset, SIGQUIT);
+  sigaddset(&sigset, SIGTSTP);
+  sigaddset(&sigset, SIGTTIN);
+  sigaddset(&sigset, SIGTTOU);
+  sigprocmask(SIG_SETMASK, &sigset, NULL);
+  //handle SIGINT and SIGTERM? I forget
+
+  //save terminal settings of shell
+  struct termios shellTermSettings;
+  if (tcgetattr(STDIN_FILENO, &shellTermSettings) != 0) {
+    perror("tcgetattr() error");
+  }
+
   while(1){
     number = parser();
     for (int i = 0; i < number; i++){
@@ -285,6 +324,10 @@ int main(){
     for (int i = 0; i < number; i++){
       pid_t pid;
       if((pid = fork()) == 0) {
+        //puts the child process in its own process group
+        setpgid();
+        //reset signal masks to default
+        sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         execvp(toks[0], toks);
       } else if (pid > 0) {
       wait(NULL);
