@@ -12,6 +12,156 @@
 #define TRUE  1;
 #define FALSE 0;
 
+/* Process struct modified from https://www.gnu.org/software/libc/manual/html_node/Data-Structures.html */
+// Data scructure to store a Process
+typedef struct Process {
+  struct Process *next;   	/* next process */
+  char **argv;            	/* for exec */
+  int numArgs;              /* number of arguments */
+  pid_t pid;              	/* process ID */
+  int status;             	/* reported status value */
+  int jobNum;			    /* the job number */
+} Process;
+
+//holds the JobList struct
+typedef struct {
+  //most recent job
+  Process* head;
+  //number of background jobs currently running
+  int length;
+} JobList;
+
+
+/* Creates a process
+ * @param pid The PID of the process
+ * @param status The status of the process
+ * @param argv The command that created the process
+ * @param numArgs The number of arguments in the command
+ * @param jobNum The job number
+ * @return The created process
+ */
+Process* makeProcess(pid_t pid, int status, char** argv, int numArgs, int jobNum) {
+    // Allocates a new Process sets its data
+    Process* newProcess = malloc(sizeof(Process));
+    newProcess->next = NULL;
+    newProcess->pid = pid;
+    newProcess->status = status;
+    newProcess->jobNum = jobNum;
+    newProcess->numArgs = numArgs;
+    //Malloc???
+    newProcess->argv = argv;
+
+    return newProcess;
+}
+
+/* Makes a new job list
+ * @return the initiated joblist
+ */
+JobList* makeJobList() {
+    JobList* jobList = malloc(1 * sizeof(JobList));
+    jobList->length = 0;
+    jobList->head = NULL;
+    return jobList;
+}
+
+/* Takes a joblist and process, and puts the process on the front of the jobList
+ * @param jobList The joblist to update
+ * @param newProcess the process to add
+ * @return Success or failure
+ */
+int push(JobList* jobList, Process* newProcess) {
+  // set the `.next` pointer of the new Process to point to the current
+  // first Process of the list.
+  newProcess->next = jobList->head;
+  //updates the head of the joblist
+  jobList->head = newProcess;
+  jobList->length += 1;
+  
+  return EXIT_SUCCESS;
+}
+
+/* Retrieves the most recently-added process from the joblist
+ * @return The most recent process
+ */
+Process* getMostRecent(JobList* jobList) {
+  return jobList->head;
+}
+
+/* Removes the most recently-added process from the joblist (doesn't free it)
+ * @return The most recent process
+ */
+Process* removeMostRecent(JobList* jobList) {
+  if(jobList->length <= 0) {
+    return NULL;
+  }
+  Process* mostRecent = jobList->head;
+  jobList->head = mostRecent->next;
+  jobList->length--;
+  return mostRecent;
+}
+
+/* Remove a process from the job list and frees it
+ * @param pid The pid of the process to remove
+ * @return Success or failure
+ */
+int removeJob(JobList* jobList, pid_t targetPid) {
+  if(jobList->length <= 0) {
+    return EXIT_FAILURE;
+  }
+  Process* ptr = jobList->head;
+  if(ptr->pid == targetPid) {
+    Process* toRemove = removeMostRecent(jobList);
+    free(toRemove);
+    return EXIT_SUCCESS;
+  }
+  while(ptr->next != NULL) {
+    if(ptr->next->pid == targetPid) {
+      Process* toRemove = ptr->next;
+      ptr->next = toRemove->next;
+      jobList->length--;
+      free(toRemove);
+      return EXIT_SUCCESS;
+    }
+    ptr = ptr->next;
+  }
+
+  return EXIT_FAILURE;
+}
+
+
+/* Prints a joblist
+ * @param jobList The joblist to print
+ */
+void printList(JobList* jobList){
+    Process* ptr = jobList->head;
+    while (ptr) {
+        printf("Job number: %d, command line:", ptr->jobNum);
+        for(int i = 0; i < ptr->numArgs; i++){
+            printf(" %s", ptr->argv[i]);
+        }
+        printf(", status: %d\n", ptr->status);
+        ptr = ptr->next;
+    }
+}
+
+//frees processes in the joblist
+void freeHelper(Process* node) {
+    if(node == NULL) {
+        return;
+    }
+    freeHelper(node->next);
+    free(node);
+}
+
+/* Frees the joblist, including calling freeHelper to free individual processes
+ * @param jobList the jobList to free
+ */
+void freeJobList(JobList* jobList) {
+    freeHelper(jobList->head);
+    free(jobList);
+}
+ 
+
 /***** Code outline for parser and tokenizer from HW2Feedback slides *****/
 //holds a string and the current position in it
 typedef struct tokenizer{
@@ -115,10 +265,33 @@ int parser(){
 
 int main(){
   int number;
+  char** currentArguments;
   while(1){
     number = parser();
     for (int i = 0; i < number; i++){
+      if (toks[i] == '&'){
+        //bg yay
+      }else if (toks[i] == ';'){
+         currentArguments = (char**) malloc(sizeof(char*)*(i+1));
+         for (int j = 0; j < i; j++){
+           //
+         }
+      }
+    }
+    for (int i = 0; i < number; i++){
+      pid_t pid;
+      if((pid = fork()) == 0) {
+        execvp(toks[0], toks);
+      } else if (pid > 0) {
+      wait(NULL);
+    }
       printf("%s\n", toks[i]);
+
     }
   }
+  for (int i = 0; i < number; i++){
+      free(toks[i]);
+  }
+  free(toks);
+  free(line);
 }
