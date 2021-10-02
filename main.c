@@ -61,6 +61,7 @@ char* get_next_token(TOKENIZER *v){
     }
   }
   string = (char*)malloc((b+1)*sizeof(char));
+  //valgrind doesn't like this
   memcpy(string, &v->str[a], b);
   string[b] = '\0';
   a += b;
@@ -87,6 +88,7 @@ char* line;
 char* shell_prompt = "parser> ";
 int parser(){
   int n = 0;int i = 0;
+  //valgrind doesn't like this line??
   line = readline(shell_prompt);
   //ctrl-d
   if(line == NULL){
@@ -131,5 +133,11 @@ int main(){
       }
 
     }
+
+    for(int i = 0; i < tokensRead; i++) {
+      free(toks[i]);
+    }
+    free(toks);
   }
+
 }
