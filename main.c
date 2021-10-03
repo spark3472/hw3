@@ -15,10 +15,12 @@
 #define TRUE  1;
 #define FALSE 0;
 
+enum status{BACKGROUNDED, FOREGROUNDED, SUSPENDED, TERMINATED};
+
 //signals to block in the shell
-//sigset_t sigset;
+sigset_t sigset;
 //set with just sigchld
-//sigset_t sigset_sigchld;
+sigset_t sigset_sigchld;
 
 //global array toks
 char** toks;
@@ -47,6 +49,8 @@ typedef struct {
   Process* head;
   //number of background jobs currently running
   int length;
+  //number of jobs added ever
+  int jobsTotal;
 } JobList;
 
 
@@ -81,6 +85,7 @@ JobList* makeJobList() {
     JobList* jobList = malloc(1 * sizeof(JobList));
     jobList->length = 0;
     jobList->head = NULL;
+    jobList->jobsTotal = 0;
     return jobList;
 }
 
@@ -97,6 +102,7 @@ int push(JobList* jobList, Process* newProcess) {
   //updates the head of the joblist
   jobList->head = newProcess;
   jobList->length += 1;
+  jobList->jobsTotal += 1;
   //sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
   return EXIT_SUCCESS;
 }
@@ -299,8 +305,11 @@ int parser(){
 char** getArgs(int start, int end){
   int args = end - start;
   char** currentArguments = (char**) malloc(sizeof(char*)*(args+1));
+
+  currentArguments[args] = NULL;
   int count = 0;
   for (int j = start; j < end; j++){
+    currentArguments[count] = malloc(sizeof(char*) * (strlen(toks[j]) + 1));
     strcpy(currentArguments[count], toks[j]);
     printf("%s\n", currentArguments[count]);
     count++;
@@ -312,7 +321,8 @@ char** getArgs(int start, int end){
 
 
 void handler(int signo, siginfo_t* info, void* context) {
-  //handle signal - maybe just sigchild, maybe others?
+  //handle sigchld
+  //if touching joblist, mask those parts to avoid race condition
 }
 
 
@@ -321,7 +331,7 @@ int main(){
   //setpgid(0,0);
   int number;
   char** currentArguments;
-  /*int aftersemi = 0;
+  int aftersemi = 0;
   //maybe move into while loop? - does sigaction stuff (creates struct and handler to fill)
   struct sigaction act = {0};
   act.sa_sigaction = &handler;
@@ -334,6 +344,7 @@ int main(){
   sigaddset(&sigset, SIGTSTP);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
+  sigaddset(&sigset, SIGINT);
   sigprocmask(SIG_SETMASK, &sigset, NULL);
   //handle SIGINT and SIGTERM? I forget
   //add sigchld to its sigset to use later
@@ -344,7 +355,10 @@ int main(){
   struct termios shellTermSettings;
   if (tcgetattr(STDIN_FILENO, &shellTermSettings) != 0) {
     perror("tcgetattr() error");
-  }*/
+  }
+
+  JobList* jobList = makeJobList();
+
   while(1){
     number = parser();
 
@@ -356,47 +370,71 @@ int main(){
     int count = 0;
     int place = 0;
     int ampOrSemi = 0;
+    int background = 0;
     for (int i = 0; i < number; i++){
-      if (strcmp(toks[i], "&") == 0 || strcmp(toks[i], ";") == 0){
+      if (strcmp(toks[i], "&") == 0){
+        ampOrSemi++;
+        background = 1;
+      } else if (strcmp(toks[i], ";") == 0) {
         ampOrSemi++;
       }
       printf("%s\n", toks[i]);
     }
+
     printf("AmpOrSemi %d\n", ampOrSemi);
+    //if no ampersands or semicolons in the command
     if (ampOrSemi == 0){
       pid_t pid;
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
         setpgid(pid, 0);
         signal(SIGTTOU, SIG_IGN);
-        tcsetpgrp(STDIN_FILENO, pid);
-        //setpgid(pid,0);
+        tcsetpgrp(STDIN_FILENO, getpgrp());
+        setpgid(pid,0);
         //reset signal masks to default
-        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+        if ( -1 == sigprocmask(SIG_UNBLOCK, &sigset, NULL)) {
+          char errmsg[64];
+          snprintf( errmsg, sizeof(errmsg), "sigprocmask failed");
+          perror( errmsg );
+          printf("AN ERROR\n");
+        }
         if( -1 == execvp( toks[0], toks) ){
           char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", toks[0] );
           perror( errmsg );
         }
       } else if (pid > 0) {
-        wait(NULL);
+        waitpid(pid, NULL, 0);
+        tcsetpgrp(STDIN_FILENO, getpgrp());
       }
     } else if (ampOrSemi == 1) {
-      char** currentArgs = getArgs(0, number-1);
+      int start = 0;
+      int end = number - 1;
+      char** currentArgs = getArgs(start, end);
       pid_t pid;
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
-        //setpgid(pid,0);
+        setpgid(pid,0);
         //reset signal masks to default
-        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+        sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         if( -1 == execvp(currentArgs[0], currentArgs) ){
           char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", currentArgs[0] );
           perror( errmsg );
         }
       } else if (pid > 0) {
-        wait(NULL);
+        if (!background) {
+          waitpid(pid, NULL, 0);
+        } else {
+          //add to joblist
+          Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
+          push(jobList, newProcess);
+        }
       }
+      for(int i = 0; i < (end - start); i++) {
+        free(currentArgs[i]);
+      }
+      free(currentArgs);
     }else{
       
     }
