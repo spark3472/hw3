@@ -16,9 +16,9 @@
 #define FALSE 0;
 
 //signals to block in the shell
-sigset_t sigset;
+//sigset_t sigset;
 //set with just sigchld
-sigset_t sigset_sigchld;
+//sigset_t sigset_sigchld;
 
 //global array toks
 char** toks;
@@ -90,14 +90,14 @@ JobList* makeJobList() {
  * @return Success or failure
  */
 int push(JobList* jobList, Process* newProcess) {
-  sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
+  //sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   // set the `.next` pointer of the new Process to point to the current
   // first Process of the list.
   newProcess->next = jobList->head;
   //updates the head of the joblist
   jobList->head = newProcess;
   jobList->length += 1;
-  sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
+  //sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
   return EXIT_SUCCESS;
 }
 
@@ -112,14 +112,14 @@ Process* getMostRecent(JobList* jobList) {
  * @return The most recent process
  */
 Process* removeMostRecent(JobList* jobList) {
-  sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
+  //sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   if(jobList->length <= 0) {
     return NULL;
   }
   Process* mostRecent = jobList->head;
   jobList->head = mostRecent->next;
   jobList->length--;
-  sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
+  //sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
   return mostRecent;
 }
 
@@ -139,11 +139,11 @@ int removeJob(JobList* jobList, pid_t targetPid) {
   }
   while(ptr->next != NULL) {
     if(ptr->next->pid == targetPid) {
-      sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
+      //sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
       Process* toRemove = ptr->next;
       ptr->next = toRemove->next;
       jobList->length--;
-      sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
+      //sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
       free(toRemove);
       return EXIT_SUCCESS;
     }
@@ -368,7 +368,9 @@ int main(){
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
         setpgid(pid, 0);
-        //setpgid(0,0);
+        signal(SIGTTOU, SIG_IGN);
+        tcsetpgrp(STDIN_FILENO, pid);
+        //setpgid(pid,0);
         //reset signal masks to default
         //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         if( -1 == execvp( toks[0], toks) ){
