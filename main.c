@@ -14,7 +14,7 @@
 #define FALSE 0;
 
 
-'''*****JOBLIST*****'''
+//'''*****JOBLIST*****'''
 
 /* Process struct modified from https://www.gnu.org/software/libc/manual/html_node/Data-Structures.html */
 // Data scructure to store a Process
@@ -179,7 +179,7 @@ char** toks;
 char** traverser;
 
 
-'''*****PARSER*****'''
+//'''*****PARSER*****'''
 
 
 /***** Code outline for parser and tokenizer from HW2Feedback slides *****/
@@ -296,7 +296,7 @@ char** getArgs(int start, int end){
 
 
 }
-void handler(int signo, siginfo_t* info, ) {
+void handler(int signo, siginfo_t* info ) {
   //handle signal - maybe just sigchild, maybe others?
 }
 
@@ -349,15 +349,18 @@ int main(){
       pid_t pid;
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
-        setpgid();
+        setpgid(pid, 0);
         //reset signal masks to default
         sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         execvp(toks[0], toks);
       } else if (pid > 0) {
         wait(NULL);
       }
+    }else{
+      
     }
   }
+  
   for (int i = 0; i < number; i++){
       free(toks[i]);
   }
