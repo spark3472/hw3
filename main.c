@@ -9,12 +9,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 #define TRUE  1;
 #define FALSE 0;
 
+//signals to block in the shell
+sigset_t sigset;
+//set with just sigchld
+sigset_t sigset_sigchld;
 
-'''*****JOBLIST*****'''
+//global array toks
+char** toks;
+//start of current command section (breaks up & and ; lines)
+char** traverser;
+
+
+/******JOBLIST******/
 
 /* Process struct modified from https://www.gnu.org/software/libc/manual/html_node/Data-Structures.html */
 // Data scructure to store a Process
@@ -25,7 +37,7 @@ typedef struct Process {
   pid_t pid;              	/* process ID */
   char suspended;           /* process suspended? */
   int status;             	/* reported status value */
-  int jobNum;			    /* the job number */
+  int jobNum;			          /* the job number */
   struct termios termSettings;  /*Terminal settings*/
 } Process;
 
@@ -56,7 +68,8 @@ Process* makeProcess(pid_t pid, int status, char** argv, int numArgs, int jobNum
     newProcess->numArgs = numArgs;
     //Malloc???
     newProcess->argv = argv;
-    newProcess->termios = NULL;
+    //figure out later
+    //newProcess->termSettings = NULL;
 
     return newProcess;
 }
@@ -172,14 +185,9 @@ void freeJobList(JobList* jobList) {
     freeHelper(jobList->head);
     free(jobList);
 }
- 
-//global array toks
-char** toks;
-//start of current command section (breaks up & and ; lines)
-char** traverser;
 
 
-'''*****PARSER*****'''
+/******PARSER******/
 
 
 /***** Code outline for parser and tokenizer from HW2Feedback slides *****/
@@ -250,7 +258,7 @@ TOKENIZER init_tokenizer(char* line){
 TOKENIZER t;
 TOKENIZER u;
 char* line;
-char* shell_prompt = "parser> ";
+char* shell_prompt = "shell> ";
 int parser(){
   int n = 0;int i = 0;
   //valgrind doesn't like this line??
@@ -270,7 +278,8 @@ int parser(){
     n++;
   }
   //allocate pointers to tokens +1 for the ending NULL
-  toks = (char**) malloc(sizeof(char*)*(n+1));
+  toks = (char**) malloc(sizeof(char*) * (n+1));
+  toks[n] = NULL;
   //start from beginning again
   u = init_tokenizer(line);
   a = 0;
@@ -279,11 +288,15 @@ int parser(){
     char* string = get_next_token(&u);
     toks[i] = (char*)malloc((strlen(string)+1)*sizeof(char));
     strcpy(toks[i], string);
+    //maybe don't need
+    //toks[i][strlen(string)] = '\0';
     free(string);
   }
   free(line);
   return n;
 }
+
+
 char** getArgs(int start, int end){
   int args = end - start;
   char** currentArguments = (char**) malloc(sizeof(char*)*(args+1));
@@ -295,24 +308,20 @@ char** getArgs(int start, int end){
   }
 
   return currentArguments;
-
-
 }
-void handler(int signo, siginfo_t* info, ) {
+
+
+void handler(int signo, siginfo_t* info, void* context) {
   //handle signal - maybe just sigchild, maybe others?
 }
 
-//signals to block in the shell
-sigset_t sigset;
-//set with just sigchld
-sigset_t sigset_sigchld;
 
 int main(){
   //puts the shell in its own process group
-  setpgid();
+  //setpgid(0,0);
   int number;
   char** currentArguments;
-  int aftersemi = 0;
+  /*int aftersemi = 0;
   //maybe move into while loop? - does sigaction stuff (creates struct and handler to fill)
   struct sigaction act = {0};
   act.sa_sigaction = &handler;
@@ -335,37 +344,64 @@ int main(){
   struct termios shellTermSettings;
   if (tcgetattr(STDIN_FILENO, &shellTermSettings) != 0) {
     perror("tcgetattr() error");
-  }
+  }*/
   while(1){
     number = parser();
+
+    //if user types "exit", leave
+    if(0 == strcmp(toks[0], "exit")) {
+      exit(0);
+    }
+
     int count = 0;
     int place = 0;
     int ampOrSemi = 0;
     for (int i = 0; i < number; i++){
-      if (strcmp(toks[i], "&") == 0 ||strcmp(toks[i], ";") == 0){
+      if (strcmp(toks[i], "&") == 0 || strcmp(toks[i], ";") == 0){
         ampOrSemi++;
       }
       printf("%s\n", toks[i]);
     }
+    printf("AmpOrSemi %d\n", ampOrSemi);
     if (ampOrSemi == 0){
       pid_t pid;
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
-        setpgid();
+        //setpgid(0,0);
         //reset signal masks to default
-        sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-        execvp(toks[0], toks);
+        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+        if( -1 == execvp( toks[0], toks) ){
+          char errmsg[64];
+          snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", toks[0] );
+          perror( errmsg );
+        }
+      } else if (pid > 0) {
+        wait(NULL);
+      }
+    } else if (ampOrSemi == 1) {
+      char** currentArgs = getArgs(0, number-1);
+      pid_t pid;
+      if((pid = fork()) == 0) {
+        //puts the child process in its own process group
+        //setpgid(0,0);
+        //reset signal masks to default
+        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+        if( -1 == execvp(currentArgs[0], currentArgs) ){
+          char errmsg[64];
+          snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", currentArgs[0] );
+          perror( errmsg );
+        }
       } else if (pid > 0) {
         wait(NULL);
       }
     }
 
-    for(int i = 0; i < tokensRead; i++) {
+    for(int i = 0; i < number; i++) {
       free(toks[i]);
     }
     free(toks);
   }
-  
+
   for (int i = 0; i < number; i++){
       free(toks[i]);
   }
