@@ -411,6 +411,24 @@ int main(){
       //printf("%s\n", toks[i]);
     }
 
+    //for now, assuming built-in commands run without & or ; -- change later
+    if(0 == strcmp(toks[0], "fg")) {
+      //call fg
+      continue;
+    } else if(0 == strcmp(toks[0], "bg")) {
+      //call bg
+      continue;
+    } else if(0 == strcmp(toks[0], "jobs")) {
+      printf("Printing the job-list!\n");
+      printList(jobList);
+      //other stuff we need to do too?
+      continue;
+    } else if(0 == strcmp(toks[0], "kill")) {
+      //call kill / removeJob
+      continue;
+    }
+    
+    
     //printf("AmpOrSemi %d\n", ampOrSemi);
     //if no ampersands or semicolons in the command
     if (ampOrSemi == 0){
@@ -420,7 +438,7 @@ int main(){
         setpgid(pid, 0);
         signal(SIGTTOU, SIG_IGN);
         tcsetpgrp(STDIN_FILENO, getpgrp());
-        setpgid(pid,0);
+        //setpgid(pid,0);
         //reset signal masks to default
         if ( -1 == sigprocmask(SIG_UNBLOCK, &sigset, NULL)) {
           char errmsg[64];
@@ -450,7 +468,13 @@ int main(){
         setpgid(pid,0);
         //reset signal masks to default
         sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-        if( -1 == execvp(currentArgs[0], currentArgs) ){
+
+	//add to jobList
+	Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
+        push(jobList, newProcess);
+	//printList(jobList);
+	
+	if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", currentArgs[0] );
@@ -462,10 +486,7 @@ int main(){
         if (!background) {
           waitpid(pid, NULL, 0);
         } else {
-          //add to joblist
-          Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
-          push(jobList, newProcess);
-          printList(jobList);
+          //if job in the background, shell just continues in the foreground
         }
       }
       for(int i = 0; i < (end - start); i++) {
