@@ -1,3 +1,15 @@
+/*****************   TO-DO   *****************
+    (for more, see checklist on design doc)
+-SIGCHLD handler
+-implement built in commands
+  -bg (and update job list)
+  -fg (and update job list)
+  -jobs (just call print jobList)
+  -kill (and update job list)
+-have to type "exit" multiple times to leave shell sometimes - fix
+-weird things after & job ends when just hit enter
+
+**********************************************/
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -162,17 +174,35 @@ int removeJob(JobList* jobList, pid_t targetPid) {
 /* Prints a joblist
  * @param jobList The joblist to print
  */
-//block signal here too???
+//block signal here too
 void printList(JobList* jobList){
-    Process* ptr = jobList->head;
-    while (ptr) {
-        printf("Job number: %d, command line:", ptr->jobNum);
-        for(int i = 0; i < ptr->numArgs; i++){
-            printf(" %s", ptr->argv[i]);
-        }
-        printf(", status: %d\n", ptr->status);
-        ptr = ptr->next;
+  Process* ptr = jobList->head;
+    
+  while (ptr) {
+
+    char* statusWord;
+    switch(ptr->status) {
+      case BACKGROUNDED:
+        statusWord = "Running";
+        break;
+      case FOREGROUNDED:
+        statusWord = "Running";
+        break;
+      case SUSPENDED:
+        statusWord = "Suspended";
+        break;
+      case TERMINATED:
+        statusWord = "Terminated";
+        break;
     }
+
+    printf("[%d] %s\t\t", ptr->jobNum, statusWord);
+    for(int i = 0; i < ptr->numArgs; i++){
+        printf(" %s", ptr->argv[i]);
+    }
+    printf("\n");
+    ptr = ptr->next;
+  }
 }
 
 //frees processes in the joblist
@@ -378,10 +408,10 @@ int main(){
       } else if (strcmp(toks[i], ";") == 0) {
         ampOrSemi++;
       }
-      printf("%s\n", toks[i]);
+      //printf("%s\n", toks[i]);
     }
 
-    printf("AmpOrSemi %d\n", ampOrSemi);
+    //printf("AmpOrSemi %d\n", ampOrSemi);
     //if no ampersands or semicolons in the command
     if (ampOrSemi == 0){
       pid_t pid;
@@ -399,9 +429,12 @@ int main(){
           printf("AN ERROR\n");
         }
         if( -1 == execvp( toks[0], toks) ){
-          char errmsg[64];
+          //error message for our use
+          /*char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", toks[0] );
-          perror( errmsg );
+          perror( errmsg );*/
+          //error message for user use
+          printf("%s: command not found\n", toks[0]);
         }
       } else if (pid > 0) {
         waitpid(pid, NULL, 0);
@@ -418,9 +451,12 @@ int main(){
         //reset signal masks to default
         sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         if( -1 == execvp(currentArgs[0], currentArgs) ){
-          char errmsg[64];
+          //error message for our use
+          /*char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", currentArgs[0] );
-          perror( errmsg );
+          perror( errmsg );*/
+          //error message for user use
+          printf("%s: command not found\n", currentArgs[0]);
         }
       } else if (pid > 0) {
         if (!background) {
@@ -429,6 +465,7 @@ int main(){
           //add to joblist
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
           push(jobList, newProcess);
+          printList(jobList);
         }
       }
       for(int i = 0; i < (end - start); i++) {
