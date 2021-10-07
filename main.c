@@ -1,6 +1,6 @@
 /*****************   TO-DO   *****************
     (for more, see checklist on design doc)
--SIGCHLD handler
+-SIGCHLD handler - in progress, see comment above handler
 -implement built in commands
   -bg (and update job list)
   -fg (and update job list)
@@ -39,6 +39,10 @@ char** toks;
 //start of current command section (breaks up & and ; lines)
 char** traverser;
 
+//jobList - MODIFY move up if have .h file for joblist
+struct JobList;
+struct JobList* jobList;
+
 
 /******JOBLIST******/
 
@@ -56,7 +60,7 @@ typedef struct Process {
 } Process;
 
 //holds the JobList struct
-typedef struct {
+struct JobList{
   //most recent job
   Process* head;
   //number of background jobs currently running
@@ -93,12 +97,12 @@ Process* makeProcess(pid_t pid, int status, char** argv, int numArgs, int jobNum
 /* Makes a new job list
  * @return the initiated joblist
  */
-JobList* makeJobList() {
-    JobList* jobList = malloc(1 * sizeof(JobList));
-    jobList->length = 0;
-    jobList->head = NULL;
-    jobList->jobsTotal = 0;
-    return jobList;
+struct JobList* makeJobList() {
+    struct JobList* newjobList = malloc(1 * sizeof(JobList));
+    newjobList->length = 0;
+    newjobList->head = NULL;
+    newjobList->jobsTotal = 0;
+    return newjobList;
 }
 
 /* Takes a joblist and process, and puts the process on the front of the jobList
@@ -106,38 +110,40 @@ JobList* makeJobList() {
  * @param newProcess the process to add
  * @return Success or failure
  */
-int push(JobList* jobList, Process* newProcess) {
-  //sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
+int push(struct JobList* jobList2, Process* newProcess) {
+  sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   // set the `.next` pointer of the new Process to point to the current
   // first Process of the list.
   newProcess->next = jobList->head;
   //updates the head of the joblist
   jobList->head = newProcess;
   jobList->length += 1;
+  printf("Updating joblist, new length %d\n", jobList->length);
   jobList->jobsTotal += 1;
-  //sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
+  sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
   return EXIT_SUCCESS;
 }
 
 /* Retrieves the most recently-added process from the joblist
  * @return The most recent process
  */
-Process* getMostRecent(JobList* jobList) {
+Process* getMostRecent(struct JobList* jobList2) {
   return jobList->head;
 }
 
 /* Removes the most recently-added process from the joblist (doesn't free it)
  * @return The most recent process
  */
-Process* removeMostRecent(JobList* jobList) {
-  //sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
+Process* removeMostRecent(struct JobList* jobList2) {
+  sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   if(jobList->length <= 0) {
     return NULL;
   }
   Process* mostRecent = jobList->head;
   jobList->head = mostRecent->next;
   jobList->length--;
-  //sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
+  printf("Decreasing joblist length, new length %d\n", jobList->length);
+  sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
   return mostRecent;
 }
 
@@ -145,7 +151,7 @@ Process* removeMostRecent(JobList* jobList) {
  * @param pid The pid of the process to remove
  * @return Success or failure
  */
-int removeJob(JobList* jobList, pid_t targetPid) {
+int removeJob(struct JobList* jobList2, pid_t targetPid) {
   if(jobList->length <= 0) {
     return EXIT_FAILURE;
   }
@@ -157,12 +163,38 @@ int removeJob(JobList* jobList, pid_t targetPid) {
   }
   while(ptr->next != NULL) {
     if(ptr->next->pid == targetPid) {
-      //sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
+      sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
       Process* toRemove = ptr->next;
       ptr->next = toRemove->next;
       jobList->length--;
-      //sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
+      printf("Decreasing joblist length, new length %d\n", jobList->length);
+      sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
       free(toRemove);
+      return EXIT_SUCCESS;
+    }
+    ptr = ptr->next;
+  }
+
+  return EXIT_FAILURE;
+}
+
+/* Finds a process in the job list using its pid
+ * @param pid The pid of the process to find
+ * @return Success or failure
+ */
+int findJob(struct JobList* jobList2, pid_t targetPid) {
+  printf("finding job %d\n", targetPid);
+  printf("Job length: %d\n", jobList->length);
+  if(jobList->length <= 0) {
+    return EXIT_FAILURE;
+  }
+  Process* ptr = jobList->head;
+  printf("job's head's pid: %d\n", jobList->head->pid);
+  if(ptr->pid == targetPid) {
+    return EXIT_SUCCESS;
+  }
+  while(ptr->next != NULL) {
+    if(ptr->next->pid == targetPid) {
       return EXIT_SUCCESS;
     }
     ptr = ptr->next;
@@ -175,11 +207,16 @@ int removeJob(JobList* jobList, pid_t targetPid) {
  * @param jobList The joblist to print
  */
 //block signal here too
-void printList(JobList* jobList){
+void printList(struct JobList* jobList2){
+  
+  if(jobList->head == NULL) {
+    printf("No jobs running\n");
+    return;
+  }
+
   Process* ptr = jobList->head;
     
   while (ptr) {
-
     char* statusWord;
     switch(ptr->status) {
       case BACKGROUNDED:
@@ -217,7 +254,7 @@ void freeHelper(Process* node) {
 /* Frees the joblist, including calling freeHelper to free individual processes
  * @param jobList the jobList to free
  */
-void freeJobList(JobList* jobList) {
+void freeJobList(struct JobList* jobList) {
     freeHelper(jobList->head);
     free(jobList);
 }
@@ -349,11 +386,40 @@ char** getArgs(int start, int end){
 }
 
 
+/*
+CURRENT PROBLEM
+PID of the child process (one in joblist) not the same as one being recieved by this handler.....
+must fix
+*/
 
-void handler(int signo, siginfo_t* info, void* context) {
+void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
   //handle sigchld
   //if touching joblist, mask those parts to avoid race condition
+  //check if status is terminated	
+
+  pid_t childPid = info->si_pid;
+  int pidHm = info->si_pid;
+  int childStatus;
+  int waitResult = waitpid(childPid, &childStatus, WUNTRACED || WCONTINUED);
+  printf("pid %d, ? %d\n", childPid, pidHm);
+
+  printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
+  if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
+    printf("child ended. joblist:\n");
+    printList(jobList);
+    if(EXIT_SUCCESS == findJob(jobList, childPid)) {
+      printf("Removing job\n");
+      removeJob(jobList, childPid);
+      
+      printList(jobList);
+    }
+  }
+
+	//remove child from job list if so
+	//check waitpid with WNOHANG to see if other children terminated (because multiple children could have terminated if SIGCHLD blocked
+
 }
+
 
 
 int main(){
@@ -364,7 +430,7 @@ int main(){
   int aftersemi = 0;
   //maybe move into while loop? - does sigaction stuff (creates struct and handler to fill)
   struct sigaction act = {0};
-  act.sa_sigaction = &handler;
+  act.sa_sigaction = &sigchld_handler;
   //sets up handler for SIGCHLD
   sigaction(SIGCHLD, &act, NULL);
 
@@ -387,7 +453,7 @@ int main(){
     perror("tcgetattr() error");
   }
 
-  JobList* jobList = makeJobList();
+  jobList = makeJobList();
 
   while(1){
     number = parser();
@@ -469,12 +535,7 @@ int main(){
         //reset signal masks to default
         sigprocmask(SIG_UNBLOCK, &sigset, NULL);
 
-	//add to jobList
-	Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
-        push(jobList, newProcess);
-	//printList(jobList);
-	
-	if( -1 == execvp(currentArgs[0], currentArgs) ){
+	      if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", currentArgs[0] );
@@ -486,8 +547,14 @@ int main(){
         if (!background) {
           waitpid(pid, NULL, 0);
         } else {
+          //add to jobList
+          printf("child's pid = %d\n", pid);
+          Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
+          push(jobList, newProcess);
+          printList(jobList);
           //if job in the background, shell just continues in the foreground
         }
+      
       }
       for(int i = 0; i < (end - start); i++) {
         free(currentArgs[i]);
