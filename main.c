@@ -7,6 +7,7 @@
   -kill (and update job list)
 -have to type "exit" multiple times to leave shell sometimes - fix
 -weird things after & job ends when just hit enter
+-valgrind :/
 
 **********************************************/
 #include <unistd.h>
@@ -261,6 +262,9 @@ void freeHelper(Process* node) {
         return;
     }
     freeHelper(node->next);
+    for(int i = 0; i < node->numArgs; i++) {
+      free(node->argv[i]);
+    }
     free(node->argv);
     free(node);
 }
@@ -510,12 +514,34 @@ int main(){
       //call bg
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
-      printf("Printing the job-list!\n");
+      //print the jobList
       printList(jobList);
-      //other stuff we need to do too?
       continue;
     } else if(0 == strcmp(toks[0], "kill")) {
-      //call kill / removeJob
+      //stop a job using its PID
+      //of form: kill [optional: -9] PID 
+      if(number == 2) {
+        //kills the job nicely
+        if(-1 == kill(atoi(toks[1]), SIGTERM)) {
+          char errmsg[64];
+          snprintf( errmsg, sizeof(errmsg), "kill (%d) ", atoi(toks[1]));
+          perror( errmsg );
+        }
+      } else if(number == 3) {
+        if(0 == strcmp(toks[1], "-9")) {
+          //kills the job firmly
+          if(-1 == kill(atoi(toks[2]), SIGKILL)) {
+            char errmsg[64];
+            snprintf( errmsg, sizeof(errmsg), "kill (%d) ", atoi(toks[1]));
+            perror( errmsg );
+          }
+        }
+      } else if(number == 1) {
+        printf("Please enter the PID of the job to kill\n");
+      } else {
+        printf("Too many arguments. Command is of form \"kill [optional: -9] PID\"\n");
+      }
+      //job removed from jobList by SIGCHLD handler
       continue;
     }
     
@@ -545,6 +571,7 @@ int main(){
           perror( errmsg );*/
           //error message for user use
           printf("%s: command not found\n", toks[0]);
+          exit(0);
         }
       } else if (pid > 0) {
         waitpid(pid, NULL, 0);
@@ -568,6 +595,7 @@ int main(){
           perror( errmsg );*/
           //error message for user use
           printf("%s: command not found\n", currentArgs[0]);
+          exit(0);
         }
       } else if (pid > 0) {
         if (!background) {
@@ -577,6 +605,7 @@ int main(){
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
           push(jobList, newProcess);
           printList(jobList);
+          //printf("PID = %d\n", pid);
           //if job in the background, shell just continues in the foreground
         }
       
