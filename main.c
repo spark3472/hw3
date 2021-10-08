@@ -93,16 +93,13 @@ Process* makeProcess(pid_t pid, int status, char** args, int numArgs, int jobNum
     //newProcess->argv = args;
     for(int i = 0; i < numArgs; i++) {
       newProcess->argv[i] = malloc(1 * sizeof(char*));
-      //strcpy(newProcess->argv[i], args[i]);
-      int count = 0;
+      strcpy(newProcess->argv[i], args[i]);
+      /*int count = 0;
       while(args[i][count] != '\0') {
         newProcess->argv[i][count] = args[i][count];
         count++;
       }
-      newProcess->argv[i][count] = '\0';
-      //newProcess->argv[i][0] = args[i][0];
-      //newProcess->argv[i][1] = 'b';
-      //newProcess->argv[i][2] = '\0';
+      newProcess->argv[i][count] = '\0';*/
     }
     
     //figure out later
@@ -480,6 +477,11 @@ int main(){
 
   while(1){
     number = parser();
+
+    //if user hits enter, prompt again
+    if(toks == NULL) {
+      continue;
+    }
 
     //if user types "exit", leave
     if(0 == strcmp(toks[0], "exit")) {
