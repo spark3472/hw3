@@ -1,6 +1,6 @@
 /*****************   TO-DO   *****************
     (for more, see checklist on design doc)
--SIGCHLD handler - done! just fixing printing
+-SIGCHLD handler - done! but printing job gives a seg fault? fix later
   -bg (and update job list)
   -fg (and update job list)
   -jobs (just call print jobList)
@@ -77,7 +77,7 @@ struct JobList{
  * @param jobNum The job number
  * @return The created process
  */
-Process* makeProcess(pid_t pid, int status, char** argv, int numArgs, int jobNum) {
+Process* makeProcess(pid_t pid, int status, char** args, int numArgs, int jobNum) {
     // Allocates a new Process sets its data
     Process* newProcess = malloc(sizeof(Process));
     newProcess->next = NULL;
@@ -85,8 +85,26 @@ Process* makeProcess(pid_t pid, int status, char** argv, int numArgs, int jobNum
     newProcess->status = status;
     newProcess->jobNum = jobNum;
     newProcess->numArgs = numArgs;
+    //newProcess->argv = argv;
+    
     //Malloc???
-    newProcess->argv = argv;
+    //MODIFY will need to free
+    newProcess->argv = malloc(1 * sizeof(char**));
+    //newProcess->argv = args;
+    for(int i = 0; i < numArgs; i++) {
+      newProcess->argv[i] = malloc(1 * sizeof(char*));
+      //strcpy(newProcess->argv[i], args[i]);
+      int count = 0;
+      while(args[i][count] != '\0') {
+        newProcess->argv[i][count] = args[i][count];
+        count++;
+      }
+      newProcess->argv[i][count] = '\0';
+      //newProcess->argv[i][0] = args[i][0];
+      //newProcess->argv[i][1] = 'b';
+      //newProcess->argv[i][2] = '\0';
+    }
+    
     //figure out later
     //newProcess->termSettings = NULL;
 
@@ -246,6 +264,7 @@ void freeHelper(Process* node) {
         return;
     }
     freeHelper(node->next);
+    free(node->argv);
     free(node);
 }
 
@@ -386,7 +405,8 @@ char** getArgs(int start, int end){
 
 /*
 CURRENT PROBLEM
-just fix printig
+Printing after job ends creates seg fault lol. The memory for argv isn't stored
+in the process I'm getting (the one removed)
 */
 
 void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
@@ -403,15 +423,17 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
     //printf("child ended.\n");
     Process* job;
     if((job = findJob(jobList, childPid)) != NULL) {
-      removeJob(jobList, childPid);
-      //figure out when to print that job terminated
       //printList(jobList);
-      printf("[%d]+ Done\t\t", job->jobNum);
+      removeJob(jobList, childPid);
+
+      //figure out when to print that job terminated
+      
       //FIX - getting segmentation fault
-      //for(int i = 0; i < job->numArgs; i++){
-      //    printf(" %s", job->argv[i]);
-      //}
-      printf("\n");
+      /*printf("[%d]+ Done\t\t", job->jobNum);
+      for(int i = 0; i < job->numArgs; i++){
+          printf(" %s", job->argv[i]);
+      }
+      printf("\n");*/
     }
   }
 
@@ -552,7 +574,7 @@ int main(){
           //add to jobList
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
           push(jobList, newProcess);
-          //printList(jobList);
+          printList(jobList);
           //if job in the background, shell just continues in the foreground
         }
       
