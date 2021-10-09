@@ -1,13 +1,12 @@
 /*****************   TO-DO   *****************
     (for more, see checklist on design doc)
 -SIGCHLD handler - done! but printing job gives a seg fault? fix later
-  -bg (and update job list)
-  -fg (and update job list)
-  -jobs (just call print jobList)
-  -kill (and update job list)
--have to type "exit" multiple times to leave shell sometimes - fix
+-bg (and update job list)
+-fg (and update job list)
 -weird things after & job ends when just hit enter
 -valgrind :/
+-can't ctrl-c and exit child
+-ctrl-d does weird things to shell
 
 **********************************************/
 #include <unistd.h>
@@ -500,24 +499,32 @@ int main(){
     if(toks == NULL) {
       continue;
     }
+    
+    //MODIFY for if user just does " ", or sometimes even returning
 
     //if user types "exit", leave
     if(0 == strcmp(toks[0], "exit")) {
       exit(0);
     }
 
-    int count = 0;
-    int place = 0;
+    //int count = 0;
+    //int place = 0;
     int ampOrSemi = 0;
-    int background = 0;
     for (int i = 0; i < number; i++){
-      if (strcmp(toks[i], "&") == 0){
+      if ((strcmp(toks[i], "&") == 0) || (strcmp(toks[i], ";") == 0)){
         ampOrSemi++;
-        background = 1;
-      } else if (strcmp(toks[i], ";") == 0) {
-        ampOrSemi++;
-      }
-      //printf("%s\n", toks[i]);
+      }      
+    }
+
+    //making an array of the location of the &'s and ;'s
+    int countPlaces = 0;
+    char ampSemiPlaces[ampOrSemi][2];
+    for (int i = 0; i < number; i++){
+      if ((strcmp(toks[i], "&") == 0) || (strcmp(toks[i], ";") == 0)){
+        ampSemiPlaces[countPlaces][0] = i;
+        ampSemiPlaces[countPlaces][1] = toks[i][0];
+        countPlaces++;
+      }      
     }
 
     //for now, assuming built-in commands run without & or ; -- change later
@@ -595,41 +602,27 @@ int main(){
       continue;
     }
     
-    
-    //printf("AmpOrSemi %d\n", ampOrSemi);
-    //if no ampersands or semicolons in the command
-    if (ampOrSemi == 0){
-      pid_t pid;
-      if((pid = fork()) == 0) {
-        //puts the child process in its own process group
-        setpgid(pid, 0);
-        signal(SIGTTOU, SIG_IGN);
-        
-
-        //reset signal masks to default
-        if ( -1 == sigprocmask(SIG_UNBLOCK, &sigset, NULL)) {
-          char errmsg[64];
-          snprintf( errmsg, sizeof(errmsg), "sigprocmask failed");
-          perror( errmsg );
-          printf("AN ERROR\n");
-        }
-
-        if( -1 == execvp( toks[0], toks) ){
-          //error message for our use
-          /*char errmsg[64];
-          snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", toks[0] );
-          perror( errmsg );*/
-          //error message for user use
-          printf("%s: command not found\n", toks[0]);
-          exit(0);
-        }
-      } else if (pid > 0) {
-        waitpid(pid, NULL, 0);
-        tcsetpgrp(STDIN_FILENO, getpgrp());
-      }
-    } else if (ampOrSemi == 1) {
+    int tokensExamined = 0;
+    int commandsRun = 0;
+    while(tokensExamined < number) {
+      //background the job?
+      int background = 0;
+      //start and end of the current command section
       int start = 0;
-      int end = number - 1;
+      int end = number;
+
+      if(commandsRun > 0) {
+        //start one after the last & or ;
+        start = ampSemiPlaces[commandsRun-1][0] + 1;
+      } 
+
+      if(commandsRun < ampOrSemi) {
+        end = ampSemiPlaces[commandsRun][0];
+        if(ampSemiPlaces[commandsRun][1] == '&') {
+          background = 1;
+        }
+      }
+
       char** currentArgs = getArgs(start, end);
       pid_t pid;
       if((pid = fork()) == 0) {
@@ -638,7 +631,7 @@ int main(){
         //reset signal masks to default
         sigprocmask(SIG_UNBLOCK, &sigset, NULL);
 
-	      if( -1 == execvp(currentArgs[0], currentArgs) ){
+        if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", currentArgs[0] );
@@ -658,14 +651,15 @@ int main(){
           //printf("PID = %d\n", pid);
           //if job in the background, shell just continues in the foreground
         }
-      
+        
       }
       for(int i = 0; i < (end - start); i++) {
         free(currentArgs[i]);
       }
       free(currentArgs);
-    }else{
-      
+
+      commandsRun++;
+      tokensExamined = end + 1;
     }
 
     for(int i = 0; i < number; i++) {
