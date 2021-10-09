@@ -510,7 +510,7 @@ int main(){
       if (number > 1){
         if (strlen(toks[1]) > 1){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
-          int jobNum = toks[1];
+          int jobNum = atoi(toks[1]);
         }else{
           printf("Error: Job Number not specified\n");          
         }
