@@ -511,8 +511,14 @@ int main(){
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
         if (number > 1){
-          char getNum = toks[1][1];
-          printf("%c\n", getNum);
+          int count = 0;
+          int i = 1;
+          char* getNum = "";
+          while (toks[1][i++] != NULL){
+            getNum = strncat(getNum, toks[1][i], 1);
+            i++;
+          }
+          printf("%s\n", getNum);
         }
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
