@@ -512,7 +512,7 @@ int main(){
     } else if(0 == strcmp(toks[0], "bg")) {
         if (number > 1){
           char getNum = toks[1][1];
-          printf("%c\n", getNum);
+          printf("%s\n", getNum);
         }
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
