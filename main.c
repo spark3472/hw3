@@ -459,7 +459,6 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 
 }
 
-
 int main(){
   //puts the shell in its own process group
   //setpgid(0,0);
@@ -539,16 +538,16 @@ int main(){
       }
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
-        if (number > 1){
-          if (strlen(toks[1]) > 1){
-            memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
-            int jobNum = atoi(toks[1]);
-            pid_t pid = getpgrp();
-            
-          }else{
-            printf("Error: Job Number not specified\n");
-          }
-        }
+        //to background a foregrounded job
+        pid_t pid = tcgetpgrp(STDOUT_FILENO);
+        char* currentArgs = "";
+        int start = 0;
+        int end = 0;
+        Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
+        push(jobList, newProcess);
+        printList(jobList);
+        tcsetpgrp(STDIN_FILENO, getpid());
+
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
       //print the jobList
