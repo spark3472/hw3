@@ -511,7 +511,7 @@ int main(){
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
         if (number > 1){
-          char *getNum = toks[1];
+          char getNum* = toks[1];
           getNum++;
           printf("%c\n", getNum);
         }
