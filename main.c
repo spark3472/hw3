@@ -511,12 +511,12 @@ int main(){
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
         if (number > 1){
-          int count = 0;
-          int i = 1;
+          int count = 1;
+          int length = strlen(toks[1]);
           char* getNum = "";
-          while (toks[1][i++] != '\0'){
-            getNum = strncat(getNum, &toks[1][i], 1);
-            //i++;
+          while (count < length - 1){
+            getNum = strncat(getNum, &toks[1][count], 1);
+            count++;
           }
           printf("%s\n", getNum);
         }
