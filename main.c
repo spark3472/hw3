@@ -550,13 +550,17 @@ int main(){
     } else if(0 == strcmp(toks[0], "bg")) {
         //to background a foregrounded job
         pid_t pid = tcgetpgrp(STDOUT_FILENO);
-        char** currentArgs = toks;
-        int start = 0;
-        int end = 0;
-        Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
-        push(jobList, newProcess);
-        printList(jobList);
-        tcsetpgrp(STDIN_FILENO, getpid());
+        if (pid == getpid()){
+          printf("to background the terminal, foreground another process\n");
+        }else{
+          char** currentArgs = toks;
+          int start = 0;
+          int end = 0;
+          Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
+          push(jobList, newProcess);
+          printList(jobList);
+          tcsetpgrp(STDIN_FILENO, getpid());
+        }
 
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
