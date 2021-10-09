@@ -528,8 +528,12 @@ int main(){
           int jobNum = atoi(toks[1]);
           printList(jobList);
           Process* ptr = getJob(jobList, jobNum);
-          tcsetpgrp(STDIN_FILENO, ptr->pid);
-          removeJob(jobList, ptr->pid);
+          if (ptr == NULL){
+            printf("Job %d does not exist\n", jobNum);
+          }else{
+            tcsetpgrp(STDIN_FILENO, ptr->pid);
+            removeJob(jobList, ptr->pid);
+          }
         }else{
           printf("Error: Job Number not specified\n");          
         }
