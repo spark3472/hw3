@@ -515,7 +515,7 @@ int main(){
       //call fg
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
-      //call bg
+        bg();
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
       //print the jobList
