@@ -507,13 +507,24 @@ int main(){
 
     //for now, assuming built-in commands run without & or ; -- change later
     if(0 == strcmp(toks[0], "fg")) {
-      //call fg
+      if (number > 1){
+        if (strlen(toks[1]) > 1){
+          memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
+          int jobNum = toks[1];
+        }else{
+          printf("Error: Job Number not specified\n");          
+        }
+      }
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
         if (number > 1){
-          int count = 1;
-          memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
-          printf("%s\n", toks[1]);
+          if (strlen(toks[1]) > 1){
+            memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
+            int jobNum = toks[1];
+            printList(jobList);
+          }else{
+            printf("Error: Job Number not specified\n");
+          }
         }
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
