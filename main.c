@@ -540,7 +540,7 @@ int main(){
     } else if(0 == strcmp(toks[0], "bg")) {
         //to background a foregrounded job
         pid_t pid = tcgetpgrp(STDOUT_FILENO);
-        char** currentArgs = "";
+        char** currentArgs = toks;
         int start = 0;
         int end = 0;
         Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
