@@ -527,6 +527,7 @@ int main(){
         if (strlen(toks[1]) > 1){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
+          printList(jobList);
           Process* ptr = getJob(jobList, jobNum);
           tcsetpgrp(STDIN_FILENO, ptr->pid);
         }else{
