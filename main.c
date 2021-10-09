@@ -443,11 +443,6 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 
 }
 
-void bg(){
-  printf("%s %s\n", toks[0], toks[1]);
-}
-
-
 
 int main(){
   //puts the shell in its own process group
@@ -515,7 +510,11 @@ int main(){
       //call fg
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
-        bg();
+        if (number > 1){
+          char *getNum = toks[1];
+          getNum++;
+          printf("%c\n", getNum);
+        }
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
       //print the jobList
