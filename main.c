@@ -217,6 +217,22 @@ Process* findJob(struct JobList* jobList2, pid_t targetPid) {
   return NULL;
 }
 
+/* Finds a process in the job list using its pid
+ * @param pid The pid of the process to find
+ * @return Process* of the job, or NULL if failure to fine
+ */
+Process* getJob(struct JobList* jobList2, int jobNum) {
+  if(jobList->length <= 0 || jobNum > jobList->length) {
+    return NULL;
+  }
+  Process* ptr = jobList->head;
+  
+  for (int i = 0; i<jobNum; i++){
+    ptr = ptr->next;
+  }
+  return ptr;
+}
+
 /* Prints a joblist
  * @param jobList The joblist to print
  */
@@ -511,9 +527,14 @@ int main(){
         if (strlen(toks[1]) > 1){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
+          Process* ptr = getJob(jobList, jobNum);
+          tcsetpgrp(STDIN_FILENO, ptr->pid);
         }else{
           printf("Error: Job Number not specified\n");          
         }
+      }else{
+        Process* recent = getMostRecent(jobList);
+        tcsetpgrp(STDIN_FILENO, ptr->pid);
       }
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
@@ -521,7 +542,8 @@ int main(){
           if (strlen(toks[1]) > 1){
             memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
             int jobNum = atoi(toks[1]);
-            printList(jobList);
+            pid_t pid = getpgrp();
+            
           }else{
             printf("Error: Job Number not specified\n");
           }
@@ -568,7 +590,7 @@ int main(){
         //puts the child process in its own process group
         setpgid(pid, 0);
         signal(SIGTTOU, SIG_IGN);
-        tcsetpgrp(STDIN_FILENO, getpgrp());
+        
 
         //reset signal masks to default
         if ( -1 == sigprocmask(SIG_UNBLOCK, &sigset, NULL)) {
