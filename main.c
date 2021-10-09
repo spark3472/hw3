@@ -515,10 +515,11 @@ int main(){
           int length = strlen(toks[1]);
           char* getNum = '\0';
           while (count < length - 1){
-            getNum = strncat(getNum, &toks[1][count], 1);
+            printf("%c\n", toks[1][count]);
+            //getNum = strncat(getNum, &toks[1][count], 1);
             //count++;
           }
-          printf("%s\n", getNum);
+          //printf("%s\n", getNum);
         }
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
