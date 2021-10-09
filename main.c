@@ -443,6 +443,10 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 
 }
 
+void bg(){
+  printf("%s %s\n", toks[0], toks[1]);
+}
+
 
 
 int main(){
