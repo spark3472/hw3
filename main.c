@@ -529,12 +529,18 @@ int main(){
           printList(jobList);
           Process* ptr = getJob(jobList, jobNum);
           tcsetpgrp(STDIN_FILENO, ptr->pid);
+          removeJob(jobList, ptr->pid);
         }else{
           printf("Error: Job Number not specified\n");          
         }
       }else{
         Process* recent = getMostRecent(jobList);
-        tcsetpgrp(STDIN_FILENO, recent->pid);
+        if (recent == NULL){
+          printf("No backgrounded job to foreground\n");
+        }else{
+          tcsetpgrp(STDIN_FILENO, recent->pid);
+          removeJob(jobList, recent->pid);
+        }
       }
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
