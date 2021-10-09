@@ -534,7 +534,7 @@ int main(){
         }
       }else{
         Process* recent = getMostRecent(jobList);
-        tcsetpgrp(STDIN_FILENO, ptr->pid);
+        tcsetpgrp(STDIN_FILENO, recent->pid);
       }
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
