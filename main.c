@@ -514,7 +514,7 @@ int main(){
           int count = 1;
           int length = strlen(toks[1]);
           char* getNum = '\0';
-          while (count < length - 1){
+          while (count < length - 2){
             printf("%c\n", toks[1][count]);
             getNum = strncat(getNum, &toks[1][count], 1);
             count++;
