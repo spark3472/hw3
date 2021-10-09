@@ -516,8 +516,8 @@ int main(){
           char* getNum = '\0';
           while (count < length - 1){
             printf("%c\n", toks[1][count]);
-            //getNum = strncat(getNum, &toks[1][count], 1);
-            //count++;
+            getNum = strncat(getNum, &toks[1][count], 1);
+            count++;
           }
           //printf("%s\n", getNum);
         }
