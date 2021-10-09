@@ -512,19 +512,8 @@ int main(){
     } else if(0 == strcmp(toks[0], "bg")) {
         if (number > 1){
           int count = 1;
-          int length = strlen(toks[1]);
-          char* getNum = '\0';
-          if (length < 3){
-            printf("%c\n", toks[1][1]);
-            getNum = strncat(getNum, &toks[1][1], 1);
-          }else{
-            while (count < length - 1){
-              printf("%c\n", toks[1][count]);
-              getNum = strncat(getNum, &toks[1][count], 1);
-              count++;
-            }
-          }
-          //printf("%s\n", getNum);
+          memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
+          printf("%s\n", toks[1]);
         }
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
