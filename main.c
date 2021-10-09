@@ -217,12 +217,12 @@ Process* findJob(struct JobList* jobList2, pid_t targetPid) {
   return NULL;
 }
 
-/* Finds a process in the job list using its pid
- * @param pid The pid of the process to find
- * @return Process* of the job, or NULL if failure to fine
+/* Finds a process in the job list using its placement in the list
+ * @param int The placement of the process in the list
+ * @return Process* of the job, or NULL if failure to find
  */
 Process* getJob(struct JobList* jobList2, int jobNum) {
-  if(jobList->length <= 0 || jobNum > jobList->length) {
+  if(jobList->length <= 0) {
     return NULL;
   }
   Process* ptr = jobList->head;
@@ -522,7 +522,7 @@ int main(){
 
     //for now, assuming built-in commands run without & or ; -- change later
     if(0 == strcmp(toks[0], "fg")) {
-      if (number > 1){
+      if (number == 2){
         if (strlen(toks[1]) > 1){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
@@ -557,7 +557,7 @@ int main(){
           int start = 0;
           int end = 0;
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
-          push(jobList, newProcess);
+          //push(jobList, newProcess);
           printList(jobList);
           tcsetpgrp(STDIN_FILENO, getpid());
         }
