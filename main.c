@@ -477,7 +477,7 @@ void handler_SIGSTP(int signo){
   push(jobList, newProcess);
   printList(jobList);
   //implement
-  waitpid(newProcess->pid, &newProcess->status, 0);
+  //waitpid(newProcess->pid, &newProcess->status, 0);
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
