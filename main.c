@@ -112,6 +112,36 @@ struct JobList* makeJobList() {
     return newjobList;
 }
 
+/* Frees a process
+ * @param process The process to free
+*/
+void freeProcess(Process* process) {
+  for(int i = 0; i < process->numArgs; i++) {
+      free(process->argv[i]);
+    }
+    free(process->argv);
+    free(process);
+}
+
+/* Goes through the joblist and frees each node
+ * @param node The node of the joblist to free
+ */
+void freeHelper(Process* node) {
+    if(node == NULL) {
+        return;
+    }
+    freeHelper(node->next);
+    freeProcess(node);
+}
+
+/* Frees the joblist, including calling freeHelper to free individual processes
+ * @param jobList the jobList to free
+ */
+void freeJobList(struct JobList* jobList) {
+    freeHelper(jobList->head);
+    free(jobList);
+}
+
 /* Takes a joblist and process, and puts the process on the front of the jobList
  * @param jobList The joblist to update
  * @param newProcess the process to add
@@ -165,7 +195,7 @@ int removeJob(struct JobList* jobList2, pid_t targetPid) {
   if(ptr->pid == targetPid) {
     jobID = ptr->jobNum;
     Process* toRemove = removeMostRecent(jobList);
-    free(toRemove);
+    freeProcess(toRemove);
     return jobID;
   }
   while(ptr->next != NULL) {
@@ -176,7 +206,7 @@ int removeJob(struct JobList* jobList2, pid_t targetPid) {
       ptr->next = toRemove->next;
       jobList->length--;
       sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
-      free(toRemove);
+      freeProcess(toRemove);
       return jobID;
     }
     ptr = ptr->next;
@@ -278,26 +308,6 @@ void printList(struct JobList* jobList2){
   }
 }
 
-//frees processes in the joblist
-void freeHelper(Process* node) {
-    if(node == NULL) {
-        return;
-    }
-    freeHelper(node->next);
-    for(int i = 0; i < node->numArgs; i++) {
-      free(node->argv[i]);
-    }
-    free(node->argv);
-    free(node);
-}
-
-/* Frees the joblist, including calling freeHelper to free individual processes
- * @param jobList the jobList to free
- */
-void freeJobList(struct JobList* jobList) {
-    freeHelper(jobList->head);
-    free(jobList);
-}
 
 /******PARSER******/
 
@@ -388,6 +398,7 @@ int parser(){
   char* string;
   while((string = get_next_token(&t)) != NULL){
     n++;
+    free(string);
   }
   //allocate pointers to tokens +1 for the ending NULL
   toks = (char**) malloc(sizeof(char*) * (n+1));
@@ -495,6 +506,7 @@ void handler_toChild(int signo){
 
   printf("kill\n");
   kill(pid, signo);
+  //kill(pid, SIGSTOP);
 }
 
 /* Put job j in the foreground.  If cont is nonzero,
@@ -528,6 +540,13 @@ void put_job_in_foreground (Process *job, int cont){
   tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
+
+void free2DCharArray(char** array, int length) {
+  for(int i = 0; i < length; i++) {
+    free(array[i]);
+  }
+  free(array);
+}
 
 
 int main(){
@@ -580,6 +599,7 @@ int main(){
     number = parser();
 
     if(number == 0) {
+      free(toks);
       continue;
     }
 
@@ -592,6 +612,8 @@ int main(){
 
     //if user types "exit", leave
     if(0 == strcmp(toks[0], "exit")) {
+      free2DCharArray(toks, number);
+      free(line);
       exit(0);
     }
 
@@ -653,7 +675,7 @@ int main(){
         }else{
           printf("Error: Job Number not specified or too many arguments\n");          
         }
-      
+      free2DCharArray(toks, number);
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
         //resumes job suspended by ctrl-z in the background
@@ -669,6 +691,7 @@ int main(){
               perror ("kill (SIGCONT)");
             }
           }
+          //EDIT free toStart?
         }else if (strlen(toks[1]) > 0){
             memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
             int jobNum = atoi(toks[1]);
@@ -684,14 +707,16 @@ int main(){
                 perror("kill (SIGCONT)");
               }
             }
+            //EDIT free ptr?
         }else{
           printf("Error: Job Number not specified or too many arguments\n");          
         }
-      
+      free2DCharArray(toks, number);
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
       //print the jobList
       printList(jobList);
+      free2DCharArray(toks, number);
       continue;
     } else if(0 == strcmp(toks[0], "kill")) {
       //stop a job using its PID
@@ -718,6 +743,7 @@ int main(){
         printf("Too many arguments. Command is of form \"kill [optional: -9] PID\"\n");
       }
       //job removed from jobList by SIGCHLD handler
+      free2DCharArray(toks, number);
       continue;
     }
     
@@ -788,16 +814,18 @@ int main(){
       tokensExamined = end + 1;
     }
 
-    for(int i = 0; i < number; i++) {
+    /*for(int i = 0; i < number; i++) {
       free(toks[i]);
     }
-    free(toks);
+    free(toks);*/
+    free2DCharArray(toks, number);
   }
 
-  for (int i = 0; i < number; i++){
+  /*for (int i = 0; i < number; i++){
       free(toks[i]);
   }
-  free(toks);
+  free(toks);*/
+  free2DCharArray(toks, number);
   free(line);
 
 }
