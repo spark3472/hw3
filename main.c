@@ -518,7 +518,7 @@ void put_job_in_foreground (Process *job, int cont){
 
 
   //put shell back in control
-  tcsetpgrp(STDIN_FILENO, shell_pgid);
+  //tcsetpgrp(STDIN_FILENO, shell_pgid);
 
   //Restore the shell’s terminal modes
   //tcgetattr(STDIN_FILENO, &job->termSettings);
