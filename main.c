@@ -458,7 +458,17 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 	//check waitpid with WNOHANG to see if other children terminated (because multiple children could have terminated if SIGCHLD blocked
 
 }
+void * suspend_handler(int signo){
+  pid_t toSuspend = tcgetpgrp(STDOUT_FILENO);
+  kill(toSuspend, SIGSTOP);
+  char** currentArgs = NULL;
+  int start = 0;
+  int end = 0;
+  Process* newProcess = makeProcess(toSuspend, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
+  push(jobList, newProcess);
+  printList(jobList);
 
+}
 int main(){
   //puts the shell in its own process group
   //setpgid(0,0);
@@ -475,7 +485,10 @@ int main(){
   //masks signals using sigprocmask() [instead of sigaction()...???]
   sigemptyset(&sigset);
   sigaddset(&sigset, SIGQUIT);
-  sigaddset(&sigset, SIGTSTP);
+
+  //catch SIGTSTP instead
+  //sigaddset(&sigset, SIGTSTP);
+  signal(SIGTSTP, suspend_handler);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
   sigaddset(&sigset, SIGINT);
@@ -524,20 +537,29 @@ int main(){
     if(0 == strcmp(toks[0], "fg")) {
       if (number == 2){
         if (strlen(toks[1]) > 1){
+
+          //gets the number of the job
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
+
+
+
           printList(jobList);
+
+          //iterates through the list and finds the job
           Process* ptr = getJob(jobList, jobNum);
           if (ptr == NULL){
             printf("Job %d does not exist\n", jobNum);
           }else{
+            //foregrounds the job
             tcsetpgrp(STDIN_FILENO, ptr->pid);
             removeJob(jobList, ptr->pid);
           }
         }else{
           printf("Error: Job Number not specified\n");          
         }
-      }else{
+      }else if (number == 1){
+        //retrieves the most recent process
         Process* recent = getMostRecent(jobList);
         if (recent == NULL){
           printf("No backgrounded job to foreground\n");
@@ -556,9 +578,7 @@ int main(){
           char** currentArgs = toks;
           int start = 0;
           int end = 0;
-          Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
-          //push(jobList, newProcess);
-          printList(jobList);
+          
           tcsetpgrp(STDIN_FILENO, getpid());
         }
 
