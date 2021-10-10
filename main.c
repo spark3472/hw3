@@ -475,7 +475,7 @@ void handler_SIGSTP(int signo){
   int end = 0;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
   push(jobList, newProcess);
-  
+  printList();
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
