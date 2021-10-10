@@ -475,9 +475,7 @@ void handler_SIGSTP(int signo){
   int end = 0;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
   push(jobList, newProcess);
-  printList(jobList);
-  //implement
-  //waitpid(newProcess->pid, &newProcess->status, 0);
+  
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
@@ -622,17 +620,26 @@ int main(){
         //resumes job suspended by ctrl-z in the background
         //should maybe get ctrl-z-ing working first lol
         //   - and then find suspended processes in joblist :/
-        pid = tcgetpgrp(STDOUT_FILENO);
         if (pid == getpid()){
           printf("to background the terminal, foreground another process\n");
         }else{
-          char** currentArgs = toks;
-          int start = 0;
-          int end = 0;
-          
-          tcsetpgrp(STDIN_FILENO, getpid());
+          if (strlen(toks[1]) > 0){
+            memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
+            int jobNum = atoi(toks[1]);
+            
+            //iterates through the list and finds the job
+            Process* ptr = getJob(jobList, jobNum);
+            if (ptr == NULL){
+              printf("Job %d does not exist\n", jobNum);
+            }else{
+              if (kill (pid, SIGCONT) < 0){
+                perror ("kill (SIGCONT)");
+              }
+            }
+        }else{
+          printf("Error: Job Number not specified or too many arguments\n");          
         }
-
+      }
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
       //print the jobList
