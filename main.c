@@ -474,7 +474,7 @@ int number;
 //so ctrl-z stops a process
 void handler_toChild(int signo){
   //kill(pid, signo);
-  kill(pid, SIGSTOP);
+  kill(pid, signo);
   char** currentArgs = toks;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
   push(jobList, newProcess);
