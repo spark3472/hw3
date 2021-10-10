@@ -243,6 +243,7 @@ Process* getJob(struct JobList* jobList2, int jobNum) {
  */
 //block signal here too
 void printList(struct JobList* jobList2){
+  printf("Printing job list\n");
   
   if(jobList->head == NULL) {
     printf("No jobs running\n");
@@ -261,7 +262,7 @@ void printList(struct JobList* jobList2){
         statusWord = "Running";
         break;
       case SUSPENDED:
-        statusWord = "Suspended";
+        statusWord = "Stopped";
         break;
       case TERMINATED:
         statusWord = "Terminated";
@@ -467,15 +468,23 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 pid_t pid;
 pid_t shell_pgid;
 struct termios shellTermSettings;
+//implement
+Process* newProcess;
 //so ctrl-z stops a process
 void handler_SIGSTP(int signo){
   kill(pid, SIGSTOP);
-  char** currentArgs = NULL;
+  char** currentArgs = toks;
   int start = 0;
   int end = 0;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
   push(jobList, newProcess);
-  printList(jobList);
+  
+  printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
+  for(int i = 0; i < newProcess->numArgs; i++){
+    printf(" %s", newProcess->argv[i]);
+  }
+  printf("\n");
+  //printList(jobList);
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
@@ -502,15 +511,15 @@ void put_job_in_foreground (Process *job, int cont){
   //figure out how to send CONT if stopped
 
   /* Wait for it to report.  */
-  //waitpid(ptr->pid, &ptr->status, 0);
+  waitpid(job->pid, NULL, 0);
 
 
-  /* Put the shell back in the foreground.  */
-  //tcsetpgrp (shell_terminal, shell_pgid);
+  //put shell back in control
+  tcsetpgrp(STDIN_FILENO, shell_pgid);
 
-  /* Restore the shell’s terminal modes.  */
-  //tcgetattr (shell_terminal, &j->tmodes);
-  //tcsetattr (shell_terminal, TCSADRAIN, &shell_tmodes);
+  //Restore the shell’s terminal modes
+  //tcgetattr(STDIN_FILENO, &job->termSettings);
+  //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
 
