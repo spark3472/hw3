@@ -620,10 +620,11 @@ int main(){
         //resumes job suspended by ctrl-z in the background
         //should maybe get ctrl-z-ing working first lol
         //   - and then find suspended processes in joblist :/
-        if (pid == getpid()){
-          printf("to background the terminal, foreground another process\n");
-        }else{
-          if (strlen(toks[1]) > 0){
+        if (toks[1] == NULL){
+          Process *toStart = getMostRecent(jobList);
+          if (kill (toStart->pid, SIGCONT) < 0)
+            perror ("kill (SIGCONT)");
+        }else if (strlen(toks[1]) > 0){
             memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
             int jobNum = atoi(toks[1]);
             
@@ -639,7 +640,7 @@ int main(){
         }else{
           printf("Error: Job Number not specified or too many arguments\n");          
         }
-      }
+      
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
       //print the jobList
