@@ -443,7 +443,7 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
   printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
   if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
     //printf("child ended.\n");
-    printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP);
+    printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, SIGCONT is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP, SIGCONT);
     Process* job;
     if((job = findJob(jobList, childPid)) != NULL) {
 
@@ -473,7 +473,8 @@ int number;
 //Process* newProcess;
 //so ctrl-z stops a process
 void handler_toChild(int signo){
-  kill(pid, signo);
+  //kill(pid, signo);
+  kill(pid, SIGSTOP);
   char** currentArgs = toks;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
   push(jobList, newProcess);
@@ -664,8 +665,11 @@ int main(){
           Process *toStart = getMostRecent(jobList);
           if (toStart == NULL){
             printf("There are no jobs\n");
-          }else if (kill (toStart->pid, SIGCONT) < 0){
-            perror ("kill (SIGCONT)");
+          } else {
+            toStart->status = BACKGROUNDED;
+            if (kill (toStart->pid, SIGCONT) < 0){
+              perror ("kill (SIGCONT)");
+            }
           }
         }else if (strlen(toks[1]) > 0){
             memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
@@ -673,9 +677,11 @@ int main(){
             
             //iterates through the list and finds the job
             Process* ptr = getJob(jobList, jobNum);
+
             if (ptr == NULL){
               printf("Job %d does not exist\n", jobNum);
             }else{
+              ptr->status = BACKGROUNDED;
               if (kill(ptr->pid, SIGCONT) < 0){
                 perror("kill (SIGCONT)");
               }
