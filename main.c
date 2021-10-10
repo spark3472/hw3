@@ -443,9 +443,9 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
   printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
   if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
     //printf("child ended.\n");
+    printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP);
     Process* job;
     if((job = findJob(jobList, childPid)) != NULL) {
-      printf("Stopped because of %d, SIGTSTP is %d", WTERMSIG(childStatus), SIGTSTP);
 
       if(WIFSIGNALED(childStatus) && SIGTSTP == WTERMSIG(childStatus)) {
         job->status = SUSPENDED;
@@ -468,15 +468,19 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 pid_t pid;
 pid_t shell_pgid;
 struct termios shellTermSettings;
+//number of tokens typed
+int number;
 //implement
-Process* newProcess;
+//Process* newProcess;
 //so ctrl-z stops a process
 void handler_SIGSTP(int signo){
+  
   kill(pid, SIGSTOP);
   char** currentArgs = toks;
-  int start = 0;
-  int end = 0;
-  Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
+  Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
+  //printf("Suspending process %d\n", newProcess->jobNum);
+  //newProcess->jobNum = jobList->jobsTotal+1;
+  //set to suspended
   push(jobList, newProcess);
   
   printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
@@ -484,12 +488,12 @@ void handler_SIGSTP(int signo){
     printf(" %s", newProcess->argv[i]);
   }
   printf("\n");
-  //printList(jobList);
+  
   //put shell back in control
-  tcsetpgrp(STDIN_FILENO, shell_pgid);
+  //tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
-  tcgetattr(STDIN_FILENO, &newProcess->termSettings);
-  tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
+  //tcgetattr(STDIN_FILENO, &newProcess->termSettings);
+  //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
 /* Put job j in the foreground.  If cont is nonzero,
@@ -528,7 +532,6 @@ int main(){
   //puts the shell in its own process group
   setpgid(0,0);
   shell_pgid = getpgrp();
-  int number;
   char** currentArguments;
   int aftersemi = 0;
   //maybe move into while loop? - does sigaction stuff (creates struct and handler to fill)
@@ -563,6 +566,7 @@ int main(){
   jobList = makeJobList();
 
   while(1){
+    //printf(" ");
     number = parser();
 
     //if user hits enter, prompt again
@@ -612,7 +616,7 @@ int main(){
         }else if (strlen(toks[1]) > 0){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
-          printList(jobList);
+          //printList(jobList);
 
           //iterates through the list and finds the job
           Process* ptr = getJob(jobList, jobNum);
@@ -696,7 +700,7 @@ int main(){
           char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "kill (%d) ", atoi(toks[1]));
           perror( errmsg );
-        }
+        } 
       } else if(number == 3) {
         if(0 == strcmp(toks[1], "-9")) {
           //kills the job firmly
@@ -755,12 +759,12 @@ int main(){
         }
       } else if (pid > 0) {
         if (!background) {
+          //newProcess = makeProcess(pid, FOREGROUNDED, currentArgs, (end - start), 0);
           waitpid(pid, NULL, 0);
         } else {
           //add to jobList
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
           push(jobList, newProcess);
-          //printList(jobList);
           printf("[%d] %d\n", newProcess->jobNum, pid);
           //if job in the background, shell just continues in the foreground
         }
