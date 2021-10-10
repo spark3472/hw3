@@ -466,7 +466,7 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 }
 
 //so ctrl-z stops a process
-void *handler_SIGSTP(int signo){
+void handler_SIGSTP(int signo){
   pid_t toSuspend = tcgetpgrp(STDOUT_FILENO);
   kill(toSuspend, SIGSTOP);
   char** currentArgs = NULL;
