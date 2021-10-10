@@ -473,6 +473,7 @@ int number;
 //Process* newProcess;
 //so ctrl-z stops a process
 void handler_toChild(int signo){
+  kill(pid, signo);
   char** currentArgs = toks;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
   push(jobList, newProcess);
@@ -488,7 +489,7 @@ void handler_toChild(int signo){
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
-  //tcgetattr(STDIN_FILENO, &newProcess->termSettings);
+  tcgetattr(STDIN_FILENO, &newProcess->termSettings);
   tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
