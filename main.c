@@ -484,9 +484,8 @@ void handler_toChild(int signo){
     printf(" %s", newProcess->argv[i]);
   }
   printf("\n");
-  //printf("\n");
   
-  //printList(jobList);
+  printList(jobList);
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
