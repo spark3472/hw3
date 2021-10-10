@@ -514,7 +514,8 @@ void put_job_in_foreground (Process *job, int cont){
 
   /* Wait for it to report.  */
   //waitpid(job->pid, NULL, 0);
-
+  //remove job from joblist
+  removeJob(jobList, job->pid);
 
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
@@ -613,8 +614,6 @@ int main(){
 
     //for now, assuming built-in commands run without & or ; -- change later
     if(0 == strcmp(toks[0], "fg")) {
-      //if (number == 2){
-        //use of this if statement? - I changed it from 1 to 0
         if (toks[1] == NULL){
 
           Process *toStart = getMostRecent(jobList);
@@ -643,30 +642,7 @@ int main(){
         }else{
           printf("Error: Job Number not specified or too many arguments\n");          
         }
-      /*}else if (number == 1){
-        //retrieves the most recent process
-        Process* recent = getMostRecent(jobList);
-        if (recent == NULL){
-          printf("No backgrounded job to foreground\n");
-        }else{
-          //follow procedure here: https://www.gnu.org/software/libc/manual/html_node/Foreground-and-Background.html 
-          //same as above, maybe change format so code simpler
-          tcsetpgrp(STDIN_FILENO, recent->pid);
-          //figure out termSettings for job
-          //figure out how to send CONT if stopped
-          removeJob(jobList, recent->pid);
-
-          //implement
-          waitpid(recent->pid, &recent->status, 0);
-
-          //put shell back in control
-          tcsetpgrp(STDIN_FILENO, shell_pgid);
-
-          //Restore the shell’s terminal modes
-          tcgetattr(STDIN_FILENO, &recent->termSettings);
-          tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
-        }*/
-      //}
+      
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
         //resumes job suspended by ctrl-z in the background
