@@ -550,7 +550,7 @@ int main(){
   signal(SIGINT, handler_toChild);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
-  sigaddset(&sigset, SIGINT);
+  //sigaddset(&sigset, SIGINT);
   sigprocmask(SIG_SETMASK, &sigset, NULL);
   //handle SIGINT and SIGTERM? I forget
   //add sigchld to its sigset to use later
