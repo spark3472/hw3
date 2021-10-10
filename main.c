@@ -467,15 +467,16 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 
 //so ctrl-z stops a process
 void handler_SIGSTP(int signo){
-  pid_t toSuspend = tcgetpgrp(STDOUT_FILENO);
-  kill(toSuspend, SIGSTOP);
+  kill(pid, SIGSTOP);
   char** currentArgs = NULL;
   int start = 0;
   int end = 0;
-  Process* newProcess = makeProcess(toSuspend, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
+  Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
   push(jobList, newProcess);
   printList(jobList);
 }
+
+pid_t pid;
 
 int main(){
   //puts the shell in its own process group
@@ -613,7 +614,7 @@ int main(){
         //resumes job suspended by ctrl-z in the background
         //should maybe get ctrl-z-ing working first lol
         //   - and then find suspended processes in joblist :/
-        pid_t pid = tcgetpgrp(STDOUT_FILENO);
+        pid = tcgetpgrp(STDOUT_FILENO);
         if (pid == getpid()){
           printf("to background the terminal, foreground another process\n");
         }else{
@@ -679,7 +680,7 @@ int main(){
       }
 
       char** currentArgs = getArgs(start, end);
-      pid_t pid;
+      //pid_t pid;
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
         setpgid(pid,0);
