@@ -483,6 +483,35 @@ void handler_SIGSTP(int signo){
   tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
+/* Put job j in the foreground.  If cont is nonzero,
+   restore the saved terminal modes and send the process group a
+   SIGCONT signal to wake it up before we block.  */
+
+voidput_job_in_foreground (Process *job, int cont)
+{
+  /* Put the job into the foreground.  */
+  tcsetpgrp(STDOUT_FILENO, job->pid);
+
+  /* Send the job a continue signal, if necessary.  */
+  if (cont)
+    {
+      tcsetattr (STDOUT_FILENO, TCSADRAIN, &job->termSettings);
+      if (kill(job->pid, SIGCONT) < 0)
+        perror ("kill (SIGCONT)");
+    }
+
+  /* Wait for it to report.  */
+  //wait_for_job (j);
+
+  /* Put the shell back in the foreground.  */
+  //tcsetpgrp (shell_terminal, shell_pgid);
+
+  /* Restore the shell’s terminal modes.  */
+  //tcgetattr (shell_terminal, &j->tmodes);
+  //tcsetattr (shell_terminal, TCSADRAIN, &shell_tmodes);
+}
+
+
 
 int main(){
   //puts the shell in its own process group
@@ -621,7 +650,6 @@ int main(){
         //should maybe get ctrl-z-ing working first lol
         //   - and then find suspended processes in joblist :/
         if (toks[1] == NULL){
-          
           Process *toStart = getMostRecent(jobList);
           if (toStart == NULL){
             printf("There are no jobs\n");
@@ -637,8 +665,8 @@ int main(){
             if (ptr == NULL){
               printf("Job %d does not exist\n", jobNum);
             }else{
-              if (kill (ptr->pid, SIGCONT) < 0){
-                perror ("kill (SIGCONT)");
+              if (kill(ptr->pid, SIGCONT) < 0){
+                perror("kill (SIGCONT)");
               }
             }
         }else{
