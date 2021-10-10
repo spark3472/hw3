@@ -464,7 +464,7 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 	//check waitpid with WNOHANG to see if other children terminated (because multiple children could have terminated if SIGCHLD blocked
 
 }
-
+pid_t pid;
 //so ctrl-z stops a process
 void handler_SIGSTP(int signo){
   kill(pid, SIGSTOP);
@@ -476,7 +476,6 @@ void handler_SIGSTP(int signo){
   printList(jobList);
 }
 
-pid_t pid;
 
 int main(){
   //puts the shell in its own process group
