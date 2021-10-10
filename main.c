@@ -497,7 +497,7 @@ int main(){
 
   //catch SIGTSTP instead
   //sigaddset(&sigset, SIGTSTP);
-  signal(SIGTSTP, suspend_handler);
+  signal(SIGTSTP, handler_SIGSTP);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
   sigaddset(&sigset, SIGINT);
