@@ -593,8 +593,13 @@ int main(){
       //if (number == 2){
         //use of this if statement? - I changed it from 1 to 0
         if (toks[1] == NULL){
+
           Process *toStart = getMostRecent(jobList);
-          put_job_in_foreground(toStart, 1);
+          if (toStart == NULL){
+            printf("There are no jobs\n");
+          }else{
+            put_job_in_foreground(toStart, 1);
+          }
         }else if (strlen(toks[1]) > 0){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
