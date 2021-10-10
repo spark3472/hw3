@@ -484,8 +484,6 @@ void handler_toChild(int signo){
     printf(" %s", newProcess->argv[i]);
   }
   printf("\n");
-  
-  printList(jobList);
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
@@ -619,7 +617,11 @@ int main(){
           if (toStart == NULL){
             printf("There are no jobs\n");
           }else{
-            put_job_in_foreground(toStart, 1);
+            int cont = 0;
+            if (toStart->status == SUSPENDED){
+              cont++;
+            }
+            put_job_in_foreground(toStart, cont);
           }
         }else if (strlen(toks[1]) > 0){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
@@ -631,8 +633,12 @@ int main(){
           if (ptr == NULL){
             printf("Job %d does not exist\n", jobNum);
           }else{
+            int cont = 0;
+            if (ptr->status == SUSPENDED){
+              int cont = 1;
+            }
             //follow procedure here: https://www.gnu.org/software/libc/manual/html_node/Foreground-and-Background.html 
-            put_job_in_foreground(ptr, 1);
+            put_job_in_foreground(ptr, cont);
             //figure out termSettings for job
             //figure out how to send CONT if stopped
             removeJob(jobList, ptr->pid);
