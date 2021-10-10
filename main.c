@@ -490,9 +490,7 @@ void handler_toChild(int signo){
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
-  if (signo == SIGTSTP){
-    tcgetattr(STDIN_FILENO, &newProcess->termSettings);
-  }
+  //tcgetattr(STDIN_FILENO, &newProcess->termSettings);
   tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
