@@ -473,26 +473,23 @@ int number;
 //Process* newProcess;
 //so ctrl-z stops a process
 void handler_toChild(int signo){
-  kill(pid, signo);
-  if (signo == SIGTSTP){
-    char** currentArgs = toks;
-    Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
-    push(jobList, newProcess);
+  char** currentArgs = toks;
+  Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
+  push(jobList, newProcess);
   
-    printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
-    for(int i = 0; i < newProcess->numArgs; i++){
-      printf(" %s", newProcess->argv[i]);
-    }
-    printf("\n");
+  printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
+  for(int i = 0; i < newProcess->numArgs; i++){
+    printf(" %s", newProcess->argv[i]);
   }
+  printf("\n");
   //printf("\n");
   
   //printList(jobList);
   //put shell back in control
-  //tcsetpgrp(STDIN_FILENO, shell_pgid);
+  tcsetpgrp(STDIN_FILENO, shell_pgid);
   //Restore the shell’s terminal modes
   //tcgetattr(STDIN_FILENO, &newProcess->termSettings);
-  //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
+  tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
 /* Put job j in the foreground.  If cont is nonzero,
@@ -547,10 +544,10 @@ int main(){
   //catch SIGTSTP instead
   //sigaddset(&sigset, SIGTSTP);
   signal(SIGTSTP, handler_toChild);
-  signal(SIGINT, handler_toChild);
+  //signal(SIGINT, handler_toChild);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
-  //sigaddset(&sigset, SIGINT);
+  sigaddset(&sigset, SIGINT);
   sigprocmask(SIG_SETMASK, &sigset, NULL);
   //handle SIGINT and SIGTERM? I forget
   //add sigchld to its sigset to use later
