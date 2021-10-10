@@ -471,19 +471,21 @@ struct termios shellTermSettings;
 //implement
 Process* newProcess;
 //so ctrl-z stops a process
-void handler_SIGSTP(int signo){
-  kill(pid, SIGSTOP);
-  char** currentArgs = toks;
-  int start = 0;
-  int end = 0;
-  Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
-  push(jobList, newProcess);
+void handler_toChild(int signo){
+  kill(pid, signo);
+  if (signo == SIGTSTP){
+    char** currentArgs = toks;
+    int start = 0;
+    int end = 0;
+    Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
+    push(jobList, newProcess);
   
-  printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
-  for(int i = 0; i < newProcess->numArgs; i++){
-    printf(" %s", newProcess->argv[i]);
+    printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
+    for(int i = 0; i < newProcess->numArgs; i++){
+      printf(" %s", newProcess->argv[i]);
+    }
+    printf("\n");
   }
-  printf("\n");
   //printList(jobList);
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
@@ -544,7 +546,8 @@ int main(){
 
   //catch SIGTSTP instead
   //sigaddset(&sigset, SIGTSTP);
-  signal(SIGTSTP, handler_SIGSTP);
+  signal(SIGTSTP, handler_toChild);
+  signal(SIGINT, handler_toChild);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
   sigaddset(&sigset, SIGINT);
