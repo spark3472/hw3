@@ -465,6 +465,7 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 
 }
 pid_t pid;
+struct termios shellTermSettings;
 //so ctrl-z stops a process
 void handler_SIGSTP(int signo){
   kill(pid, SIGSTOP);
@@ -474,6 +475,13 @@ void handler_SIGSTP(int signo){
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
   push(jobList, newProcess);
   printList(jobList);
+  //implement
+  waitpid(newProcess->pid, &newProcess->status, 0);
+  //put shell back in control
+  tcsetpgrp(STDIN_FILENO, getpid());
+  //Restore the shell’s terminal modes
+  tcgetattr(STDIN_FILENO, &newProcess->termSettings);
+  tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
 }
 
 
@@ -508,7 +516,7 @@ int main(){
   sigaddset(&sigset_sigchld, SIGCHLD);
 
   //save terminal settings of shell
-  struct termios shellTermSettings;
+  //struct termios shellTermSettings;
   if (tcgetattr(STDIN_FILENO, &shellTermSettings) != 0) {
     perror("tcgetattr() error");
   }
