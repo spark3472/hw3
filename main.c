@@ -471,17 +471,17 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
     }
   }
 
-	//remove child from job list if so
 	//check waitpid with WNOHANG to see if other children terminated (because multiple children could have terminated if SIGCHLD blocked
 
 }
+
+
 pid_t pid;
 pid_t shell_pgid;
 struct termios shellTermSettings;
 //number of tokens typed
 int number;
-//implement
-//Process* newProcess;
+
 //so ctrl-z stops a process
 void handler_toChild(int signo){
   //kill(pid, signo);
@@ -490,13 +490,9 @@ void handler_toChild(int signo){
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
   push(jobList, newProcess);
 
-
-  //give terminal back to shell
-  tcsetpgrp(STDIN_FILENO, shell_pgid);
   //take terminal back from child process
   //tcgetattr(STDIN_FILENO, &newProcess->termSettings);
   //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
-
 
   printf("\n[%d]+ Stopped\t\t\n", newProcess->jobNum);
   for(int i = 0; i < newProcess->numArgs; i++){
@@ -504,9 +500,13 @@ void handler_toChild(int signo){
   }
   printf("\n");
 
+  
   printf("kill\n");
-  kill(pid, signo);
   //kill(pid, SIGSTOP);
+  kill(pid, signo);
+
+  //give terminal back to shell
+  //tcsetpgrp(STDIN_FILENO, shell_pgid);
 }
 
 /* Put job j in the foreground.  If cont is nonzero,
@@ -612,8 +612,8 @@ int main(){
 
     //if user types "exit", leave
     if(0 == strcmp(toks[0], "exit")) {
-      free2DCharArray(toks, number);
-      free(line);
+      //free2DCharArray(toks, number);
+      //free(line);
       exit(0);
     }
 
