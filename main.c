@@ -475,11 +475,12 @@ int number;
 void handler_toChild(int signo){
   //kill(pid, signo);
   kill(pid, signo);
+
   char** currentArgs = toks;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
   push(jobList, newProcess);
   
-  printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
+  printf("\n[%d]+ Stopped\t\t\n", newProcess->jobNum);
   for(int i = 0; i < newProcess->numArgs; i++){
     printf(" %s", newProcess->argv[i]);
   }
