@@ -487,8 +487,7 @@ void handler_SIGSTP(int signo){
    restore the saved terminal modes and send the process group a
    SIGCONT signal to wake it up before we block.  */
 
-voidput_job_in_foreground (Process *job, int cont)
-{
+void put_job_in_foreground (Process *job, int cont){
   /* Put the job into the foreground.  */
   tcsetpgrp(STDOUT_FILENO, job->pid);
 
@@ -499,9 +498,12 @@ voidput_job_in_foreground (Process *job, int cont)
       if (kill(job->pid, SIGCONT) < 0)
         perror ("kill (SIGCONT)");
     }
+  //figure out termSettings for job
+  //figure out how to send CONT if stopped
 
   /* Wait for it to report.  */
-  //wait_for_job (j);
+  //waitpid(ptr->pid, &ptr->status, 0);
+
 
   /* Put the shell back in the foreground.  */
   //tcsetpgrp (shell_terminal, shell_pgid);
@@ -588,9 +590,12 @@ int main(){
 
     //for now, assuming built-in commands run without & or ; -- change later
     if(0 == strcmp(toks[0], "fg")) {
-      if (number == 2){
+      //if (number == 2){
         //use of this if statement? - I changed it from 1 to 0
-        if (strlen(toks[1]) > 0){
+        if (toks[1] == NULL){
+          Process *toStart = getMostRecent(jobList);
+          put_job_in_foreground(toStart, 1);
+        }else if (strlen(toks[1]) > 0){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
           printList(jobList);
@@ -601,26 +606,16 @@ int main(){
             printf("Job %d does not exist\n", jobNum);
           }else{
             //follow procedure here: https://www.gnu.org/software/libc/manual/html_node/Foreground-and-Background.html 
-            //maybe make into seperate function for ease
-            tcsetpgrp(STDIN_FILENO, ptr->pid);
+            put_job_in_foreground(ptr, 1);
             //figure out termSettings for job
             //figure out how to send CONT if stopped
             removeJob(jobList, ptr->pid);
-
-            //implement
-            waitpid(ptr->pid, &ptr->status, 0);
-
-            //put shell back in control
-            tcsetpgrp(STDIN_FILENO, shell_pgid);
-
-            //Restore the shell’s terminal modes
-            tcgetattr(STDIN_FILENO, &ptr->termSettings);
-            tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
+        
           }
         }else{
           printf("Error: Job Number not specified or too many arguments\n");          
         }
-      }else if (number == 1){
+      /*}else if (number == 1){
         //retrieves the most recent process
         Process* recent = getMostRecent(jobList);
         if (recent == NULL){
@@ -642,8 +637,8 @@ int main(){
           //Restore the shell’s terminal modes
           tcgetattr(STDIN_FILENO, &recent->termSettings);
           tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
-        }
-      }
+        }*/
+      //}
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
         //resumes job suspended by ctrl-z in the background
