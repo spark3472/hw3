@@ -621,9 +621,13 @@ int main(){
         //should maybe get ctrl-z-ing working first lol
         //   - and then find suspended processes in joblist :/
         if (toks[1] == NULL){
+          
           Process *toStart = getMostRecent(jobList);
-          if (kill (toStart->pid, SIGCONT) < 0)
+          if (toStart == NULL){
+            printf("There are no jobs\n");
+          }else if (kill (toStart->pid, SIGCONT) < 0){
             perror ("kill (SIGCONT)");
+          }
         }else if (strlen(toks[1]) > 0){
             memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
             int jobNum = atoi(toks[1]);
@@ -633,7 +637,7 @@ int main(){
             if (ptr == NULL){
               printf("Job %d does not exist\n", jobNum);
             }else{
-              if (kill (pid, SIGCONT) < 0){
+              if (kill (ptr->pid, SIGCONT) < 0){
                 perror ("kill (SIGCONT)");
               }
             }
