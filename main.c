@@ -447,9 +447,8 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
     Process* job;
     if((job = findJob(jobList, childPid)) != NULL) {
 
-      if(WIFSIGNALED(childStatus) && SIGTSTP == WTERMSIG(childStatus)) {
-        job->status = SUSPENDED;
-        job->suspended = 'y';
+      if(job->status == SUSPENDED) {
+        return;
       } else {
         printf("\n[%d]+ Done\t\t", job->jobNum);
         for(int i = 0; i < job->numArgs; i++){
