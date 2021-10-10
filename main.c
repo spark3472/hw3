@@ -466,7 +466,7 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 }
 
 //so ctrl-z stops a process
-void handler_SIGSTP(void* arg){
+void *handler_SIGSTP(int signo){
   pid_t toSuspend = tcgetpgrp(STDOUT_FILENO);
   kill(toSuspend, SIGSTOP);
   char** currentArgs = NULL;
@@ -553,20 +553,10 @@ int main(){
     //for now, assuming built-in commands run without & or ; -- change later
     if(0 == strcmp(toks[0], "fg")) {
       if (number == 2){
-<<<<<<< HEAD
-        if (strlen(toks[1]) > 1){
-
-          //gets the number of the job
-          memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
-=======
         //use of this if statement? - I changed it from 1 to 0
         if (strlen(toks[1]) > 0){
-          //memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
->>>>>>> 7827ebf152c19e5344ab7ba10990a6da4621e53d
+          memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
-
-
-
           printList(jobList);
 
           //iterates through the list and finds the job
@@ -574,12 +564,8 @@ int main(){
           if (ptr == NULL){
             printf("Job %d does not exist\n", jobNum);
           }else{
-<<<<<<< HEAD
-            //foregrounds the job
-=======
             //follow procedure here: https://www.gnu.org/software/libc/manual/html_node/Foreground-and-Background.html 
             //maybe make into seperate function for ease
->>>>>>> 7827ebf152c19e5344ab7ba10990a6da4621e53d
             tcsetpgrp(STDIN_FILENO, ptr->pid);
             //figure out termSettings for job
             //figure out how to send CONT if stopped
