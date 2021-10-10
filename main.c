@@ -478,17 +478,21 @@ void handler_toChild(int signo){
   char** currentArgs = toks;
   Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
   push(jobList, newProcess);
-  
+
+
+  //give terminal back to shell
+  tcsetpgrp(STDIN_FILENO, shell_pgid);
+  //take terminal back from child process
+  //tcgetattr(STDIN_FILENO, &newProcess->termSettings);
+  //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
+
+
   printf("\n[%d]+ Stopped\t\t\n", newProcess->jobNum);
   for(int i = 0; i < newProcess->numArgs; i++){
     printf(" %s", newProcess->argv[i]);
   }
   printf("\n");
-  //put shell back in control
-  tcsetpgrp(STDIN_FILENO, shell_pgid);
-  //Restore the shell’s terminal modes
-  tcgetattr(STDIN_FILENO, &newProcess->termSettings);
-  tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
+
   printf("kill\n");
   kill(pid, signo);
 }
