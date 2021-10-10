@@ -30,7 +30,7 @@
 enum status{BACKGROUNDED, FOREGROUNDED, SUSPENDED, TERMINATED};
 
 //signals to block in the shell
-sigset_t sigset;
+//sigset_t sigset, sigset_old;
 //set with just sigchld
 sigset_t sigset_sigchld;
 
@@ -440,10 +440,10 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
   int childStatus;
   int waitResult = waitpid(childPid, &childStatus, WUNTRACED || WCONTINUED);
 
-  printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
+  //printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
   if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
     //printf("child ended.\n");
-    printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, SIGCONT is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP, SIGCONT);
+    //printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, SIGCONT is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP, SIGCONT);
     Process* job;
     if((job = findJob(jobList, childPid)) != NULL) {
 
@@ -532,14 +532,17 @@ int main(){
   shell_pgid = getpgrp();
   char** currentArguments;
   int aftersemi = 0;
+  sigset_t sigset, sigset_old;
   //maybe move into while loop? - does sigaction stuff (creates struct and handler to fill)
   struct sigaction act = {0};
+  sigemptyset(&act.sa_mask);
   act.sa_sigaction = &sigchld_handler;
   act.sa_flags = SA_SIGINFO;
   //sets up handler for SIGCHLD
   sigaction(SIGCHLD, &act, NULL);
 
   //masks signals using sigprocmask() [instead of sigaction()...???]
+  sigemptyset(&sigset_old);
   sigemptyset(&sigset);
   sigaddset(&sigset, SIGQUIT);
 
@@ -550,7 +553,11 @@ int main(){
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
   sigaddset(&sigset, SIGINT);
-  sigprocmask(SIG_SETMASK, &sigset, NULL);
+
+  //sigprocmask(SIG_SETMASK, &sigset, NULL);
+  //sigprocmask(SIG_BLOCK, &sigset, NULL);
+  sigprocmask(SIG_BLOCK, &sigset, &sigset_old);
+
   //handle SIGINT and SIGTERM? I forget
   //add sigchld to its sigset to use later
   sigemptyset(&sigset_sigchld);
@@ -568,10 +575,14 @@ int main(){
     //printf(" ");
     number = parser();
 
-    //if user hits enter, prompt again
-    if(toks == NULL) {
+    if(number == 0) {
       continue;
     }
+
+    //if user hits enter, prompt again
+    //if(toks == NULL) {
+    //  continue;
+    //}
     
     //MODIFY for if user just does " ", or sometimes even returning
 
@@ -748,10 +759,15 @@ int main(){
       //pid_t pid;
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
-        setpgid(pid,0);
+        setpgid(getpid(),0);
+        if(!background){
+          tcsetpgrp(STDIN_FILENO, getpid());
+        }
         //reset signal masks to default
-        sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-
+        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+        sigprocmask(SIG_SETMASK, &sigset_old, NULL);
+        //signal(SIGINT, SIG_DFL); 
+        
         if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];
@@ -765,6 +781,8 @@ int main(){
         if (!background) {
           //newProcess = makeProcess(pid, FOREGROUNDED, currentArgs, (end - start), 0);
           waitpid(pid, NULL, 0);
+          tcsetpgrp(STDIN_FILENO, shell_pgid);
+          tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
         } else {
           //add to jobList
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
