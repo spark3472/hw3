@@ -474,6 +474,7 @@ int number;
 //so ctrl-z stops a process
 void handler_toChild(int signo){
   //kill(pid, signo);
+  printf("kill\n");
   kill(pid, signo);
 
   char** currentArgs = toks;
