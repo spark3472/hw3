@@ -1,13 +1,13 @@
 /*****************   TO-DO   *****************
     (for more, see checklist on design doc)
--SIGCHLD handler - done! but printing job gives a seg fault? fix later
-  -bg (and update job list)
-  -fg (and update job list)
-  -jobs (just call print jobList)
-  -kill (and update job list)
--have to type "exit" multiple times to leave shell sometimes - fix
+-fg - send CONT if needed
+-bg (and update job list)
 -weird things after & job ends when just hit enter
 -valgrind :/
+-can't ctrl-c and exit child
+-ctrl-d does weird things to shell
+-command "ls " treats " " as thing to ls
+-set up SIGTSTP (ctrl-z) handler
 
 **********************************************/
 #include <unistd.h>
@@ -53,6 +53,7 @@ typedef struct Process {
   char **argv;            	/* for exec */
   int numArgs;              /* number of arguments */
   pid_t pid;              	/* process ID */
+  //need? 
   char suspended;           /* process suspended? */
   int status;             	/* reported status value */
   int jobNum;			          /* the job number */
@@ -86,25 +87,16 @@ Process* makeProcess(pid_t pid, int status, char** args, int numArgs, int jobNum
     newProcess->status = status;
     newProcess->jobNum = jobNum;
     newProcess->numArgs = numArgs;
-    //newProcess->argv = argv;
-    
-    //Malloc???
     //MODIFY will need to free
     newProcess->argv = malloc(1 * sizeof(char**));
-    //newProcess->argv = args;
     for(int i = 0; i < numArgs; i++) {
       newProcess->argv[i] = malloc(1 * sizeof(char*));
       strcpy(newProcess->argv[i], args[i]);
-      /*int count = 0;
-      while(args[i][count] != '\0') {
-        newProcess->argv[i][count] = args[i][count];
-        count++;
-      }
-      newProcess->argv[i][count] = '\0';*/
     }
     
     //figure out later
     //newProcess->termSettings = NULL;
+    tcgetattr(STDIN_FILENO, &newProcess->termSettings);
 
     return newProcess;
 }
@@ -226,11 +218,24 @@ Process* getJob(struct JobList* jobList2, int jobNum) {
     return NULL;
   }
   Process* ptr = jobList->head;
-  
-  for (int i = 0; i<jobNum; i++){
+
+  if(ptr->jobNum == jobNum) {
+    return ptr;
+  }
+  //otherwise, iter through the list
+  while(ptr->next != NULL) {
+    if(ptr->next->jobNum == jobNum) {
+      return ptr->next;
+    }
     ptr = ptr->next;
   }
-  return ptr;
+
+  return NULL;
+  
+  /*for (int i = 0; i<jobNum; i++){
+    ptr = ptr->next;
+  }*/
+  //return ptr;
 }
 
 /* Prints a joblist
@@ -421,9 +426,8 @@ char** getArgs(int start, int end){
 
 
 /*
-CURRENT PROBLEM
-Printing after job ends creates seg fault lol. The memory for argv isn't stored
-in the process I'm getting (the one removed)
+Edit so stopped job shows as stopped (WIFSIGNALED(status) will return 1, then check info)
+Prints when done and not right before shell because we're doing is sychronously
 */
 
 void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
@@ -435,22 +439,24 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
   int childStatus;
   int waitResult = waitpid(childPid, &childStatus, WUNTRACED || WCONTINUED);
 
-  //printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
+  printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
   if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
     //printf("child ended.\n");
     Process* job;
     if((job = findJob(jobList, childPid)) != NULL) {
-      //printList(jobList);
-      removeJob(jobList, childPid);
+      printf("Stopped because of %d, SIGTSTP is %d", WTERMSIG(childStatus), SIGTSTP);
 
-      //figure out when to print that job terminated
-      
-      //FIX - getting segmentation fault
-      /*printf("[%d]+ Done\t\t", job->jobNum);
-      for(int i = 0; i < job->numArgs; i++){
-          printf(" %s", job->argv[i]);
+      if(WIFSIGNALED(childStatus) && SIGTSTP == WTERMSIG(childStatus)) {
+        job->status = SUSPENDED;
+        job->suspended = 'y';
+      } else {
+        printf("\n[%d]+ Done\t\t", job->jobNum);
+        for(int i = 0; i < job->numArgs; i++){
+            printf(" %s", job->argv[i]);
+        }
+        printf("\n");
+        removeJob(jobList, childPid);
       }
-      printf("\n");*/
     }
   }
 
@@ -458,7 +464,9 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 	//check waitpid with WNOHANG to see if other children terminated (because multiple children could have terminated if SIGCHLD blocked
 
 }
-void * suspend_handler(int signo){
+
+//so ctrl-z stops a process
+void handler_SIGSTP(void* arg){
   pid_t toSuspend = tcgetpgrp(STDOUT_FILENO);
   kill(toSuspend, SIGSTOP);
   char** currentArgs = NULL;
@@ -467,11 +475,12 @@ void * suspend_handler(int signo){
   Process* newProcess = makeProcess(toSuspend, SUSPENDED, currentArgs, (end - start), jobList->jobsTotal+1);
   push(jobList, newProcess);
   printList(jobList);
-
 }
+
 int main(){
   //puts the shell in its own process group
-  //setpgid(0,0);
+  setpgid(0,0);
+  pid_t shell_pgid = getpgrp();
   int number;
   char** currentArguments;
   int aftersemi = 0;
@@ -513,33 +522,47 @@ int main(){
     if(toks == NULL) {
       continue;
     }
+    
+    //MODIFY for if user just does " ", or sometimes even returning
 
     //if user types "exit", leave
     if(0 == strcmp(toks[0], "exit")) {
       exit(0);
     }
 
-    int count = 0;
-    int place = 0;
+    //int count = 0;
+    //int place = 0;
     int ampOrSemi = 0;
-    int background = 0;
     for (int i = 0; i < number; i++){
-      if (strcmp(toks[i], "&") == 0){
+      if ((strcmp(toks[i], "&") == 0) || (strcmp(toks[i], ";") == 0)){
         ampOrSemi++;
-        background = 1;
-      } else if (strcmp(toks[i], ";") == 0) {
-        ampOrSemi++;
-      }
-      //printf("%s\n", toks[i]);
+      }      
+    }
+
+    //making an array of the location of the &'s and ;'s
+    int countPlaces = 0;
+    char ampSemiPlaces[ampOrSemi][2];
+    for (int i = 0; i < number; i++){
+      if ((strcmp(toks[i], "&") == 0) || (strcmp(toks[i], ";") == 0)){
+        ampSemiPlaces[countPlaces][0] = i;
+        ampSemiPlaces[countPlaces][1] = toks[i][0];
+        countPlaces++;
+      }      
     }
 
     //for now, assuming built-in commands run without & or ; -- change later
     if(0 == strcmp(toks[0], "fg")) {
       if (number == 2){
+<<<<<<< HEAD
         if (strlen(toks[1]) > 1){
 
           //gets the number of the job
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
+=======
+        //use of this if statement? - I changed it from 1 to 0
+        if (strlen(toks[1]) > 0){
+          //memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
+>>>>>>> 7827ebf152c19e5344ab7ba10990a6da4621e53d
           int jobNum = atoi(toks[1]);
 
 
@@ -551,12 +574,29 @@ int main(){
           if (ptr == NULL){
             printf("Job %d does not exist\n", jobNum);
           }else{
+<<<<<<< HEAD
             //foregrounds the job
+=======
+            //follow procedure here: https://www.gnu.org/software/libc/manual/html_node/Foreground-and-Background.html 
+            //maybe make into seperate function for ease
+>>>>>>> 7827ebf152c19e5344ab7ba10990a6da4621e53d
             tcsetpgrp(STDIN_FILENO, ptr->pid);
+            //figure out termSettings for job
+            //figure out how to send CONT if stopped
             removeJob(jobList, ptr->pid);
+
+            //implement
+            waitpid(ptr->pid, &ptr->status, 0);
+
+            //put shell back in control
+            tcsetpgrp(STDIN_FILENO, shell_pgid);
+
+            //Restore the shell’s terminal modes
+            tcgetattr(STDIN_FILENO, &ptr->termSettings);
+            tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
           }
         }else{
-          printf("Error: Job Number not specified\n");          
+          printf("Error: Job Number not specified or too many arguments\n");          
         }
       }else if (number == 1){
         //retrieves the most recent process
@@ -564,13 +604,29 @@ int main(){
         if (recent == NULL){
           printf("No backgrounded job to foreground\n");
         }else{
+          //follow procedure here: https://www.gnu.org/software/libc/manual/html_node/Foreground-and-Background.html 
+          //same as above, maybe change format so code simpler
           tcsetpgrp(STDIN_FILENO, recent->pid);
+          //figure out termSettings for job
+          //figure out how to send CONT if stopped
           removeJob(jobList, recent->pid);
+
+          //implement
+          waitpid(recent->pid, &recent->status, 0);
+
+          //put shell back in control
+          tcsetpgrp(STDIN_FILENO, shell_pgid);
+
+          //Restore the shell’s terminal modes
+          tcgetattr(STDIN_FILENO, &recent->termSettings);
+          tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
         }
       }
       continue;
     } else if(0 == strcmp(toks[0], "bg")) {
-        //to background a foregrounded job
+        //resumes job suspended by ctrl-z in the background
+        //should maybe get ctrl-z-ing working first lol
+        //   - and then find suspended processes in joblist :/
         pid_t pid = tcgetpgrp(STDOUT_FILENO);
         if (pid == getpid()){
           printf("to background the terminal, foreground another process\n");
@@ -615,41 +671,27 @@ int main(){
       continue;
     }
     
-    
-    //printf("AmpOrSemi %d\n", ampOrSemi);
-    //if no ampersands or semicolons in the command
-    if (ampOrSemi == 0){
-      pid_t pid;
-      if((pid = fork()) == 0) {
-        //puts the child process in its own process group
-        setpgid(pid, 0);
-        signal(SIGTTOU, SIG_IGN);
-        
-
-        //reset signal masks to default
-        if ( -1 == sigprocmask(SIG_UNBLOCK, &sigset, NULL)) {
-          char errmsg[64];
-          snprintf( errmsg, sizeof(errmsg), "sigprocmask failed");
-          perror( errmsg );
-          printf("AN ERROR\n");
-        }
-
-        if( -1 == execvp( toks[0], toks) ){
-          //error message for our use
-          /*char errmsg[64];
-          snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", toks[0] );
-          perror( errmsg );*/
-          //error message for user use
-          printf("%s: command not found\n", toks[0]);
-          exit(0);
-        }
-      } else if (pid > 0) {
-        waitpid(pid, NULL, 0);
-        tcsetpgrp(STDIN_FILENO, getpgrp());
-      }
-    } else if (ampOrSemi == 1) {
+    int tokensExamined = 0;
+    int commandsRun = 0;
+    while(tokensExamined < number) {
+      //background the job?
+      int background = 0;
+      //start and end of the current command section
       int start = 0;
-      int end = number - 1;
+      int end = number;
+
+      if(commandsRun > 0) {
+        //start one after the last & or ;
+        start = ampSemiPlaces[commandsRun-1][0] + 1;
+      } 
+
+      if(commandsRun < ampOrSemi) {
+        end = ampSemiPlaces[commandsRun][0];
+        if(ampSemiPlaces[commandsRun][1] == '&') {
+          background = 1;
+        }
+      }
+
       char** currentArgs = getArgs(start, end);
       pid_t pid;
       if((pid = fork()) == 0) {
@@ -658,7 +700,7 @@ int main(){
         //reset signal masks to default
         sigprocmask(SIG_UNBLOCK, &sigset, NULL);
 
-	      if( -1 == execvp(currentArgs[0], currentArgs) ){
+        if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];
           snprintf( errmsg, sizeof(errmsg), "exec '%s' failed", currentArgs[0] );
@@ -674,18 +716,19 @@ int main(){
           //add to jobList
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
           push(jobList, newProcess);
-          printList(jobList);
-          //printf("PID = %d\n", pid);
+          //printList(jobList);
+          printf("[%d] %d\n", newProcess->jobNum, pid);
           //if job in the background, shell just continues in the foreground
         }
-      
+        
       }
       for(int i = 0; i < (end - start); i++) {
         free(currentArgs[i]);
       }
       free(currentArgs);
-    }else{
-      
+
+      commandsRun++;
+      tokensExamined = end + 1;
     }
 
     for(int i = 0; i < number; i++) {
