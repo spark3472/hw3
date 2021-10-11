@@ -594,21 +594,16 @@ int main(){
   //masks signals using sigprocmask() [instead of sigaction()...???]
   sigemptyset(&sigset_old);
   sigemptyset(&sigset);
-  sigaddset(&sigset, SIGQUIT);
-
-  //catch SIGTSTP instead
-  //sigaddset(&sigset, SIGTSTP);
+  
   signal(SIGTSTP, handler_toChild);
-  //signal(SIGINT, handler_toChild);
+
+  sigaddset(&sigset, SIGQUIT);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
   sigaddset(&sigset, SIGINT);
 
-  //sigprocmask(SIG_SETMASK, &sigset, NULL);
-  //sigprocmask(SIG_BLOCK, &sigset, NULL);
   sigprocmask(SIG_BLOCK, &sigset, &sigset_old);
 
-  //handle SIGINT and SIGTERM? I forget
   //add sigchld to its sigset to use later
   sigemptyset(&sigset_sigchld);
   sigaddset(&sigset_sigchld, SIGCHLD);
@@ -622,30 +617,18 @@ int main(){
   jobList = makeJobList();
 
   while(1){
-    //printf(" ");
     number = parser();
 
+    //if nothing entered, continue
     if(number == 0) {
-      //free(toks);
       continue;
     }
 
-    //if user hits enter, prompt again
-    //if(toks == NULL) {
-    //  continue;
-    //}
-    
-    //MODIFY for if user just does " ", or sometimes even returning
-
     //if user types "exit", leave
     if(0 == strcmp(toks[0], "exit")) {
-      //free2DCharArray(toks, number);
-      //free(line);
       exit(0);
     }
 
-    //int count = 0;
-    //int place = 0;
     int ampOrSemi = 0;
     for (int i = 0; i < number; i++){
       if ((strcmp(toks[i], "&") == 0) || (strcmp(toks[i], ";") == 0)){
@@ -664,7 +647,7 @@ int main(){
       }      
     }
 
-    //for now, assuming built-in commands run without & or ; -- change later
+    //for now, assuming built-in commands run without & or ;
     if(0 == strcmp(toks[0], "fg")) {
         if (toks[1] == NULL){
 
@@ -797,14 +780,14 @@ int main(){
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
         setpgid(getpid(),0);
-        //if(!background){
-        //  tcsetpgrp(STDIN_FILENO, getpid());
-        //}
-        //reset signal masks to default
-        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-        sigprocmask(SIG_SETMASK, &sigset_old, NULL);
-        //signal(SIGINT, SIG_DFL); 
         
+        if(!background){
+          tcsetpgrp(STDIN_FILENO, getpid());
+        }
+        
+        //reset signal masks to default
+        sigprocmask(SIG_SETMASK, &sigset_old, NULL);
+
         if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];
@@ -816,8 +799,8 @@ int main(){
         }
       } else if (pid > 0) {
         if (!background) {
-          //newProcess = makeProcess(pid, FOREGROUNDED, currentArgs, (end - start), 0);
           waitpid(pid, NULL, 0);
+          tcsetpgrp(STDIN_FILENO, shell_pgid);
           //tcsetpgrp(STDIN_FILENO, shell_pgid);
           //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
         } else {
