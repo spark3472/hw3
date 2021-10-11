@@ -459,7 +459,6 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 #endif
 
   if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
-    //printf("child ended.\n");
     //printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, SIGCONT is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP, SIGCONT);
     Process* job;
     if((job = findJob(jobList, childPid)) != NULL) {
@@ -490,6 +489,7 @@ int number;
 
 //so ctrl-z stops a process
 void handler_toChild(int signo){
+  //printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, \n", signo, SIGTSTP, SIGSTOP);
   if (signo == SIGTSTP){
     Process* newProcess = NULL;
     char** currentArgs = toks;
@@ -500,7 +500,7 @@ void handler_toChild(int signo){
       if (newProcess != NULL){
         push(jobList, newProcess);
       }else{
-        printf("Something wring in makeProcess\n");
+        printf("Something wrong in makeProcess\n");
         return;
       }
     }else{
@@ -508,9 +508,6 @@ void handler_toChild(int signo){
       return;
     }
 #endif
-
-    // Suspend child process
-    kill(pid, SIGTSTP);
 
     printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
     for(int i = 0; i < newProcess->numArgs; i++){
@@ -525,6 +522,8 @@ void handler_toChild(int signo){
 
   //give terminal back to shell
   tcsetpgrp(STDIN_FILENO, shell_pgid);
+  
+  
 }
 
 /* Put job j in the foreground.  If cont is nonzero,
@@ -585,6 +584,10 @@ int main(){
   //masks signals using sigprocmask() [instead of sigaction()...???]
   sigemptyset(&sigset_old);
   sigemptyset(&sigset);
+
+  
+  signal(SIGTSTP, handler_toChild);
+  //sigaddset(&sigset, SIGTSTP);
   sigaddset(&sigset, SIGQUIT);
 
   //catch SIGTSTP instead
@@ -793,14 +796,23 @@ int main(){
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
         setpgid(getpid(),0);
+
         //if(!background){
           //tcsetpgrp(STDIN_FILENO, getpid());
         //}
+
+        
+        if(!background){
+          //tcsetpgrp(STDIN_FILENO, getpid());
+          //signal(SIGTSTP, handler_toChild);
+        }
+        
         //reset signal masks to default
         //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         sigprocmask(SIG_SETMASK, &sigset_old, NULL);
         //signal(SIGINT, SIG_DFL); 
         
+        //signal(SIGTSTP, handler_toChild);
         if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];

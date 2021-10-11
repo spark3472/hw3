@@ -1,15 +1,5 @@
 # README
 
-Your README must explain any particular design decisions or features of your shell. It
-should contain at least three parts:
-- An introduction to the basic structure of your shell
-- A list of which features are fully implemented, partially implemented and not implemented
-- A discussion of how you tested your shell for robustness and correctness
-
-You should get used to providing your software with an overview document which will make
-granting credits easier. You should write this document especially well if you are unable get
-things working completely but have the bones right.
-
 <h2>Introduction</h2>
 This shell does most of the work of a common terminal shell by using execvp as well as calling functions that were implemented to act as built-in commands (fg, bg, jobs, and kill). Each new line on the shell is parsed into individual words and delimiters and read into a global char* array. We use a linked list to keep track of backgrounded or stopped jobs. The job list does not include jobs running in the foreground or the shell itself. For each job, we're storing the PID, job number, command line arguments that started the job, the number of arguments in that command, the status value, and the termios settings of the job. The shell ignores SIGQUIT, SIGTTIN, SIGTTOU, SIGSTOP, and SIGINT, and handles SIGCHLD and SIGTSTP. A new background job will be added to the joblist and continues to run while the shell is put back in the foreground, and a new foreground job will be run to completion (unless it is ctrl-z'd), at which point the shell will take back over. When a job is stopped, it send a SIGCHLD to the shell which updates the joblist as necessary. We use signal masking around critical regions in the joblists to handle concurrency issues.
 
@@ -50,19 +40,25 @@ If the argument is jobs, it calls the function printList() which prints the job 
 <h5>kill %#</h4>
 Sends a SIGTERM to the specified or most recent child process. If -9 is specified, then it sends a SIGKILL to the specified or most recent process.
 <h5>bg %#</h5>
-Is it's own "function" that puts the shell in the foreground and sends a SIGCONT (if necessary) to restart a suspended process.
+Is it's own "function" that restarts a child process that is suspended in the background.
 <h5>fg %#</h5>
-<br />
+Function for fg: put_job_in_foreground() that restarts a child process and puts it to the foreground.
 
 <h3>Partially Implemented</h3>
-
+emacs, vi, and cat do not show up in the foreground of the terminal because if the child process is given the terminal foreground and catches ctrl-z, then it is suspended but not added to the job list.
 
 <h3>Not Implemented</h3>
 Extra Credit is not implemented.
 
 <h2>Testing</h2>
+Tested the program by first writing smaller programs (one for joblist and another for the parser) to make sure those features were working seperately, then each time a feature was finished being implemented. Valgrind was used to check for memory leaks. Printf() debugging was also used to check for errors. <br  >
+[hw3tests_shared.txt](https://github.com/spark3472/hw3/files/7319483/hw3tests_shared.txt)
+
 
 <h3>Tests Performed</h3>
 Small tests at each step of building the code were performed. When near completion, the test cases given by hw3texts_shared.txt were used. 
 
 <h3>Bugs</h3>
+Backgrounding emacs or cat with an ampersand ends up sending a signal which terminates those child processes as well as creating a double free() error. <br  >
+Double free() errors are most of our errors <br  >
+Memory leaks (tried to free everything)
