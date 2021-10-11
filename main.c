@@ -791,9 +791,9 @@ int main(){
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
         setpgid(getpid(),0);
-        if(!background){
-          tcsetpgrp(STDIN_FILENO, getpid());
-        }
+        //if(!background){
+        //  tcsetpgrp(STDIN_FILENO, getpid());
+        //}
         //reset signal masks to default
         //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         sigprocmask(SIG_SETMASK, &sigset_old, NULL);
@@ -812,8 +812,8 @@ int main(){
         if (!background) {
           //newProcess = makeProcess(pid, FOREGROUNDED, currentArgs, (end - start), 0);
           waitpid(pid, NULL, 0);
-          tcsetpgrp(STDIN_FILENO, shell_pgid);
-          tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
+          //tcsetpgrp(STDIN_FILENO, shell_pgid);
+          //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
         } else {
           //add to jobList
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
