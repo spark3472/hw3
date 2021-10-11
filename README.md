@@ -1,15 +1,5 @@
 # README
 
-Your README must explain any particular design decisions or features of your shell. It
-should contain at least three parts:
-- An introduction to the basic structure of your shell
-- A list of which features are fully implemented, partially implemented and not implemented
-- A discussion of how you tested your shell for robustness and correctness
-
-You should get used to providing your software with an overview document which will make
-granting credits easier. You should write this document especially well if you are unable get
-things working completely but have the bones right.
-
 <h2>Introduction</h2>
 This shell does most of the work of a common terminal shell by using execvp as well as calling functions that were implemented to act as built-in commands (fg, bg, jobs, and kill). Each new line on the shell is parsed into individual words and delimiters and read into a global char* array. We use a linked list to keep track of backgrounded or stopped jobs. The job list does not include jobs running in the foreground or the shell itself. For each job, we're storing the PID, job number, command line arguments that started the job, the number of arguments in that command, the status value, and the termios settings of the job. The shell ignores SIGQUIT, SIGTTIN, SIGTTOU, SIGSTOP, and SIGINT, and handles SIGCHLD and SIGTSTP. A new background job will be added to the joblist and continues to run while the shell is put back in the foreground, and a new foreground job will be run to completion (unless it is ctrl-z'd), at which point the shell will take back over. When a job is stopped, it send a SIGCHLD to the shell which updates the joblist as necessary. We use signal masking around critical regions in the joblists to handle concurrency issues.
 
