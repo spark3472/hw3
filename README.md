@@ -28,11 +28,31 @@ Command execution by user input is done in the same way as a regular shell by fo
 <h2>Features</h2>
 
 <h3>Fully Implemented</h3>
-1. Joblist
-  1. Functions for JobList: makeJobList() and freeJobList()
-2. Struct Process
-  2. 
-The job list and struct process are fully implemented. The functions to make a job list, remove, add, or traverse the job list using the process pointers are also fully implemented. The function to make a process is fully implemented. Reading the command line and parsing the arguments is fully implemented. One ampersand and one semicolon cases are fully implemented. Multiple semicolon cases are fully implemented. Creating a child process and execvp()ing the global array is also fully implemented. Signal handlers are fully implemented. 
+<h4>JobList</h4>
+Functions for JobList: makeJobList(), push(), getMostRecent(), removeMostRecent(), removeJob(), findJob(), getJob(), printList(), freeJobList()
+<h4>struct Process</h4>
+Functions for struct Process: makeProcess() and freeProcess()
+<h4>Parser</h4>
+struct tokenizer <br />
+Functions for parser: parser(), init_tokenizer(), get_next_token(), getArgs()
+<h4>Signal Handlers</h4>
+Functions for signal handlers: sigchld_handler() and handler_toChild() <br />
+Used sigset and sigaction to block a set of signals.
+<h4>Child Terminated</h4>
+Function for Child Terminated: sigchld_handler() in which it handles a SIGCHLD signal sent from a finished child process to the shell (parent process).
+<h4>CTRL-Z Suspension</h4>
+Function for CTRL-Z Suspension: handler_toChild() in which it catches a CTRL-Z SIGTSTP signal sent to the shell and sends it to the child process and puts the child process into the joblist.
+<h4>Process Groups</h4>
+The shell is put into its own process group. The child processes are put into their own process group after being forked.
+<h4>Built-in Commands </h4>
+<h5>jobs</h4>
+If the argument is jobs, it calls the function printList() which prints the job list.
+<h5>kill %#</h4>
+Sends a SIGTERM to the specified or most recent child process. If -9 is specified, then it sends a SIGKILL to the specified or most recent process.
+<h5>bg</h5>
+Is it's own "function" that puts the shell in the foreground and sends a SIGCONT (if necessary) to restart a suspended process.
+<h5>Foreground Job</h5>
+<br />
 
 <h3>Partially Implemented</h3>
 Built-in commands are not implemented with "&" and ";".
