@@ -1,4 +1,5 @@
 # README
+<h2>Maya Johnson and Ashley Park</h2>
 <h2>To Compile and Run</h2>
 make <br  >
 ./main
