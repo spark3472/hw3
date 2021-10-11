@@ -150,7 +150,7 @@ void freeJobList(struct JobList* jobList) {
  * @param newProcess the process to add
  * @return Success or failure
  */
-int push(Process* newProcess) {
+int push(struct JobList* jobList2, Process* newProcess) {
   sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   // set the `.next` pointer of the new Process to point to the current
   // first Process of the list.
@@ -164,34 +164,16 @@ int push(Process* newProcess) {
 }
 
 /* Retrieves the most recently-added process from the joblist
- * @param status Most recent of all, or most recent suspended
- * @return The most recent process, or NULL if searching for suspended process and are none
+ * @return The most recent process
  */
-Process* getMostRecent(char* status) {
-  if(0 == strcmp(status, "all")) {
-    return jobList->head;
-  } else if(0 == strcmp(status, "suspended")) {
-    if(jobList->head == NULL) {
-      return jobList->head;
-    }
-    Process* ptr = jobList->head;
-    if(ptr->status == SUSPENDED) {
-      return ptr;
-    }
-    while(ptr->next != NULL) {
-      if(ptr->next->status == SUSPENDED) {
-        return ptr->next;
-      }
-      ptr = ptr->next;
-    }
-    return NULL;
-  }
+Process* getMostRecent(struct JobList* jobList2) {
+  return jobList->head;
 }
 
 /* Removes the most recently-added process from the joblist (doesn't free it)
  * @return The most recent process
  */
-Process* removeMostRecent() {
+Process* removeMostRecent(struct JobList* jobList2) {
   sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
   if(jobList->length <= 0) {
     return NULL;
@@ -207,7 +189,7 @@ Process* removeMostRecent() {
  * @param pid The pid of the process to remove
  * @return jobID of the removed job, or -1 if failure
  */
-int removeJob(pid_t targetPid) {
+int removeJob(struct JobList* jobList2, pid_t targetPid) {
   int jobID = -1;
   if(jobList->length <= 0) {
     return jobID;
@@ -215,11 +197,10 @@ int removeJob(pid_t targetPid) {
   Process* ptr = jobList->head;
   if(ptr->pid == targetPid) {
     jobID = ptr->jobNum;
-    Process* toRemove = removeMostRecent();
+    Process* toRemove = removeMostRecent(jobList);
     freeProcess(toRemove);
     return jobID;
   }
-  //iters through the joblist to find the job
   while(ptr->next != NULL) {
     if(ptr->next->pid == targetPid) {
       sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
@@ -241,7 +222,7 @@ int removeJob(pid_t targetPid) {
  * @param pid The pid of the process to find
  * @return Process* of the job, or NULL if failure to fine
  */
-Process* findJob(pid_t targetPid) {
+Process* findJob(struct JobList* jobList2, pid_t targetPid) {
   if(jobList->length <= 0) {
     return NULL;
   }
@@ -265,12 +246,12 @@ Process* findJob(pid_t targetPid) {
  * @param int The placement of the process in the list
  * @return Process* of the job, or NULL if failure to find
  */
-Process* getJob(int jobNum) {
+Process* getJob(struct JobList* jobList2, int jobNum) {
   if(jobList->length <= 0) {
     return NULL;
   }
   Process* ptr = jobList->head;
-  //if first job is the target, return
+
   if(ptr->jobNum == jobNum) {
     return ptr;
   }
@@ -283,12 +264,20 @@ Process* getJob(int jobNum) {
   }
 
   return NULL;
+  
+  /*for (int i = 0; i<jobNum; i++){
+    ptr = ptr->next;
+  }*/
+  //return ptr;
 }
 
 /* Prints a joblist
  * @param jobList The joblist to print
  */
-void printList(){  
+//block signal here too
+void printList(struct JobList* jobList2){
+  printf("Printing job list\n");
+  
   if(jobList->head == NULL) {
     printf("No jobs running\n");
     return;
@@ -325,6 +314,7 @@ void printList(){
 
 /******PARSER******/
 
+
 /***** Code outline for parser and tokenizer from HW2Feedback slides *****/
 //holds a string and the current position in it
 typedef struct tokenizer{
@@ -336,6 +326,7 @@ typedef struct tokenizer{
  * @param tokenizer
  * @return Pointer to the string between the delimiters or the delimiter
  */
+
 int a = 0;
 char* get_next_token(TOKENIZER *v){
 	//if current char is a delimiter, just return it
@@ -368,6 +359,7 @@ char* get_next_token(TOKENIZER *v){
     }
   }
   string = (char*)malloc((b+1)*sizeof(char));
+  //valgrind doesn't like this
   memcpy(string, &v->str[a], b);
   string[b] = '\0';
   a += b;
@@ -394,6 +386,7 @@ char* line;
 char* shell_prompt = "shell> ";
 int parser(){
   int n = 0;int i = 0;
+  //valgrind doesn't like this line??
   line = readline(shell_prompt);
   //ctrl-d
   if(line == NULL){
@@ -421,27 +414,25 @@ int parser(){
     char* string = get_next_token(&u);
     toks[i] = (char*)malloc((strlen(string)+1)*sizeof(char));
     strcpy(toks[i], string);
+    //maybe don't need
+    //toks[i][strlen(string)] = '\0';
     free(string);
   }
   free(line);
   return n;
 }
 
-/* Gets the current subset of the full line (to account for & and ;)
- * @param start The start location in toks to read from
- * @param end The place in toks to stop reading
- * @return The subsetted line
- */
+
 char** getArgs(int start, int end){
   int args = end - start;
   char** currentArguments = (char**) malloc(sizeof(char*)*(args+1));
-  //null terminate the array
+
   currentArguments[args] = NULL;
-  //copy into currentArguments
   int count = 0;
   for (int j = start; j < end; j++){
     currentArguments[count] = malloc(sizeof(char*) * (strlen(toks[j]) + 1));
     strcpy(currentArguments[count], toks[j]);
+    //printf("%s\n", currentArguments[count]);
     count++;
   }
 
@@ -471,7 +462,7 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
     //printf("child ended.\n");
     //printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, SIGCONT is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP, SIGCONT);
     Process* job;
-    if((job = findJob(childPid)) != NULL) {
+    if((job = findJob(jobList, childPid)) != NULL) {
 
       if(job->status == SUSPENDED) {
         return;
@@ -481,7 +472,7 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
             printf(" %s", job->argv[i]);
         }
         printf("\n");
-        removeJob(childPid);
+        removeJob(jobList, childPid);
       }
     }
   }
@@ -507,7 +498,7 @@ void handler_toChild(int signo){
     if (currentArgs != NULL){
       newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
       if (newProcess != NULL){
-        push(newProcess);
+        push(jobList, newProcess);
       }else{
         printf("Something wring in makeProcess\n");
         return;
@@ -533,7 +524,7 @@ void handler_toChild(int signo){
   kill(pid, signo);
 
   //give terminal back to shell
-  //tcsetpgrp(STDIN_FILENO, shell_pgid);
+  tcsetpgrp(STDIN_FILENO, shell_pgid);
 }
 
 /* Put job j in the foreground.  If cont is nonzero,
@@ -555,9 +546,9 @@ void put_job_in_foreground (Process *job, int cont){
   //figure out how to send CONT if stopped
 
   /* Wait for it to report.  */
-  waitpid(job->pid, NULL, 0);
+  //waitpid(job->pid, NULL, 0);
   //remove job from joblist
-  removeJob(job->pid);
+  removeJob(jobList, job->pid);
 
   //put shell back in control
   tcsetpgrp(STDIN_FILENO, shell_pgid);
@@ -594,16 +585,21 @@ int main(){
   //masks signals using sigprocmask() [instead of sigaction()...???]
   sigemptyset(&sigset_old);
   sigemptyset(&sigset);
-  
-  signal(SIGTSTP, handler_toChild);
-
   sigaddset(&sigset, SIGQUIT);
+
+  //catch SIGTSTP instead
+  //sigaddset(&sigset, SIGTSTP);
+  signal(SIGTSTP, handler_toChild);
+  //signal(SIGINT, handler_toChild);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
   sigaddset(&sigset, SIGINT);
 
+  //sigprocmask(SIG_SETMASK, &sigset, NULL);
+  //sigprocmask(SIG_BLOCK, &sigset, NULL);
   sigprocmask(SIG_BLOCK, &sigset, &sigset_old);
 
+  //handle SIGINT and SIGTERM? I forget
   //add sigchld to its sigset to use later
   sigemptyset(&sigset_sigchld);
   sigaddset(&sigset_sigchld, SIGCHLD);
@@ -617,18 +613,30 @@ int main(){
   jobList = makeJobList();
 
   while(1){
+    //printf(" ");
     number = parser();
 
-    //if nothing entered, continue
     if(number == 0) {
+      free(toks);
       continue;
     }
 
+    //if user hits enter, prompt again
+    //if(toks == NULL) {
+    //  continue;
+    //}
+    
+    //MODIFY for if user just does " ", or sometimes even returning
+
     //if user types "exit", leave
     if(0 == strcmp(toks[0], "exit")) {
+      //free2DCharArray(toks, number);
+      //free(line);
       exit(0);
     }
 
+    //int count = 0;
+    //int place = 0;
     int ampOrSemi = 0;
     for (int i = 0; i < number; i++){
       if ((strcmp(toks[i], "&") == 0) || (strcmp(toks[i], ";") == 0)){
@@ -647,11 +655,11 @@ int main(){
       }      
     }
 
-    //for now, assuming built-in commands run without & or ;
+    //for now, assuming built-in commands run without & or ; -- change later
     if(0 == strcmp(toks[0], "fg")) {
         if (toks[1] == NULL){
 
-          Process *toStart = getMostRecent("all");
+          Process *toStart = getMostRecent(jobList);
           if (toStart == NULL){
             printf("There are no jobs\n");
           }else{
@@ -664,9 +672,10 @@ int main(){
         }else if (strlen(toks[1]) > 0){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
+          //printList(jobList);
 
           //iterates through the list and finds the job
-          Process* ptr = getJob(jobNum);
+          Process* ptr = getJob(jobList, jobNum);
           if (ptr == NULL){
             printf("Job %d does not exist\n", jobNum);
           }else{
@@ -676,8 +685,10 @@ int main(){
             }
             //follow procedure here: https://www.gnu.org/software/libc/manual/html_node/Foreground-and-Background.html 
             put_job_in_foreground(ptr, cont);
-
-            removeJob(ptr->pid);
+            //figure out termSettings for job
+            //figure out how to send CONT if stopped
+            removeJob(jobList, ptr->pid);
+        
           }
         }else{
           printf("Error: Job Number not specified or too many arguments\n");          
@@ -689,9 +700,9 @@ int main(){
         //should maybe get ctrl-z-ing working first lol
         //   - and then find suspended processes in joblist :/
         if (toks[1] == NULL){
-          Process *toStart = getMostRecent("suspended");
+          Process *toStart = getMostRecent(jobList);
           if (toStart == NULL){
-            printf("There are no suspended jobs\n");
+            printf("There are no jobs\n");
           } else {
             toStart->status = BACKGROUNDED;
             if (kill (toStart->pid, SIGCONT) < 0){
@@ -704,7 +715,7 @@ int main(){
             int jobNum = atoi(toks[1]);
             
             //iterates through the list and finds the job
-            Process* ptr = getJob(jobNum);
+            Process* ptr = getJob(jobList, jobNum);
 
             if (ptr == NULL){
               printf("Job %d does not exist\n", jobNum);
@@ -714,10 +725,12 @@ int main(){
                 perror("kill (SIGCONT)");
               }
             }
+
             //EDIT free ptr?
         }else{
           printf("Error: Job Number not specified or too many arguments\n");          
         }
+        
       free2DCharArray(toks, number);
       continue;
     } else if(0 == strcmp(toks[0], "jobs")) {
@@ -780,14 +793,14 @@ int main(){
       if((pid = fork()) == 0) {
         //puts the child process in its own process group
         setpgid(getpid(),0);
-        
-        if(!background){
-          tcsetpgrp(STDIN_FILENO, getpid());
-        }
-        
+        //if(!background){
+          //tcsetpgrp(STDIN_FILENO, getpid());
+        //}
         //reset signal masks to default
+        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         sigprocmask(SIG_SETMASK, &sigset_old, NULL);
-
+        //signal(SIGINT, SIG_DFL); 
+        
         if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];
@@ -799,14 +812,14 @@ int main(){
         }
       } else if (pid > 0) {
         if (!background) {
+          //newProcess = makeProcess(pid, FOREGROUNDED, currentArgs, (end - start), 0);
           waitpid(pid, NULL, 0);
-          tcsetpgrp(STDIN_FILENO, shell_pgid);
           //tcsetpgrp(STDIN_FILENO, shell_pgid);
-          //tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
+          tcsetattr(STDIN_FILENO, TCSADRAIN, &shellTermSettings);
         } else {
           //add to jobList
           Process* newProcess = makeProcess(pid, BACKGROUNDED, currentArgs, (end - start), jobList->jobsTotal+1);
-          push(newProcess);
+          push(jobList, newProcess);
           printf("[%d] %d\n", newProcess->jobNum, pid);
           //if job in the background, shell just continues in the foreground
         }
