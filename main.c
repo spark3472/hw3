@@ -593,10 +593,10 @@ int main(){
   //catch SIGTSTP instead
   //sigaddset(&sigset, SIGTSTP);
   signal(SIGTSTP, handler_toChild);
-  //signal(SIGINT, handler_toChild);
+  signal(SIGINT, handler_toChild);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
-  sigaddset(&sigset, SIGINT);
+  //sigaddset(&sigset, SIGINT);
 
   //sigprocmask(SIG_SETMASK, &sigset, NULL);
   //sigprocmask(SIG_BLOCK, &sigset, NULL);
