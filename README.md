@@ -50,19 +50,23 @@ If the argument is jobs, it calls the function printList() which prints the job 
 <h5>kill %#</h4>
 Sends a SIGTERM to the specified or most recent child process. If -9 is specified, then it sends a SIGKILL to the specified or most recent process.
 <h5>bg %#</h5>
-Is it's own "function" that puts the shell in the foreground and sends a SIGCONT (if necessary) to restart a suspended process.
+Is it's own "function" that restarts a child process that is suspended in the background.
 <h5>fg %#</h5>
-<br />
+Function for fg: put_job_in_foreground() that restarts a child process and puts it to the foreground.
 
 <h3>Partially Implemented</h3>
-
+emacs, vi, and cat do not show up in the foreground of the terminal because if the child process is given the terminal foreground and catches ctrl-z, then it is suspended but not added to the job list.
 
 <h3>Not Implemented</h3>
 Extra Credit is not implemented.
 
 <h2>Testing</h2>
+[hw3tests_shared.txt](https://github.com/spark3472/hw3/files/7319483/hw3tests_shared.txt)
+
 
 <h3>Tests Performed</h3>
 Small tests at each step of building the code were performed. When near completion, the test cases given by hw3texts_shared.txt were used. 
 
 <h3>Bugs</h3>
+Backgrounding emacs or cat with an ampersand ends up sending a signal which terminates those child processes as well as creating a double free() error. <br  >
+Memory leaks (tried to free everything)
