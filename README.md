@@ -1,6 +1,6 @@
 # README
-<h2>To Compile</h2>
-make
+<h2>To Compile and Run</h2>
+make <br  >
 ./main
 
 <h2>Introduction</h2>
