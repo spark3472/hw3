@@ -49,9 +49,9 @@ The shell is put into its own process group. The child processes are put into th
 If the argument is jobs, it calls the function printList() which prints the job list.
 <h5>kill %#</h4>
 Sends a SIGTERM to the specified or most recent child process. If -9 is specified, then it sends a SIGKILL to the specified or most recent process.
-<h5>bg</h5>
+<h5>bg %#</h5>
 Is it's own "function" that puts the shell in the foreground and sends a SIGCONT (if necessary) to restart a suspended process.
-<h5>Foreground Job</h5>
+<h5>fg %#</h5>
 <br />
 
 <h3>Partially Implemented</h3>
