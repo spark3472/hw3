@@ -516,7 +516,7 @@ void handler_toChild(int signo){
     printf("\n");
   }
   
-  printf("kill\n");
+  //printf("kill\n");
   //kill(pid, SIGSTOP);
   kill(pid, signo);
 
@@ -585,12 +585,8 @@ int main(){
   sigemptyset(&sigset_old);
   sigemptyset(&sigset);
 
-  
-  signal(SIGTSTP, handler_toChild);
-  //sigaddset(&sigset, SIGTSTP);
   sigaddset(&sigset, SIGQUIT);
 
-  //catch SIGTSTP instead
   //sigaddset(&sigset, SIGTSTP);
   signal(SIGTSTP, handler_toChild);
   signal(SIGINT, handler_toChild);
@@ -797,22 +793,14 @@ int main(){
         //puts the child process in its own process group
         setpgid(getpid(),0);
 
-        //if(!background){
-          //tcsetpgrp(STDIN_FILENO, getpid());
-        //}
-
-        
         if(!background){
           //tcsetpgrp(STDIN_FILENO, getpid());
           //signal(SIGTSTP, handler_toChild);
         }
         
         //reset signal masks to default
-        //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
         sigprocmask(SIG_SETMASK, &sigset_old, NULL);
-        //signal(SIGINT, SIG_DFL); 
         
-        //signal(SIGTSTP, handler_toChild);
         if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
           /*char errmsg[64];

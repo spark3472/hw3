@@ -61,4 +61,5 @@ Small tests at each step of building the code were performed. When near completi
 <h3>Bugs</h3>
 Backgrounding emacs or cat with an ampersand ends up sending a signal which terminates those child processes as well as creating a double free() error. <br  >
 Double free() errors are most of our errors <br  >
+Press enter after fg to return to shell <br  >
 Memory leaks (tried to free everything)
