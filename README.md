@@ -41,7 +41,7 @@ The shell is put into its own process group. The child processes are put into th
 <h4>Built-in Commands </h4>
 <h5>jobs</h4>
 If the argument is jobs, it calls the function printList() which prints the job list.
-<h5>kill %#</h4>
+<h5>kill [PID]</h4>
 Sends a SIGTERM to the specified or most recent child process. If -9 is specified, then it sends a SIGKILL to the specified or most recent process.
 <h5>bg %#</h5>
 Is it's own "function" that restarts a child process that is suspended in the background.
