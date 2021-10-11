@@ -55,14 +55,14 @@ Is it's own "function" that puts the shell in the foreground and sends a SIGCONT
 <br />
 
 <h3>Partially Implemented</h3>
-Built-in commands are not implemented with "&" and ";".
 
 
 <h3>Not Implemented</h3>
-Piping and redirection are not implemented.
+Extra Credit is not implemented.
 
 <h2>Testing</h2>
 
 <h3>Tests Performed</h3>
+Small tests at each step of building the code were performed. When near completion, the test cases given by hw3texts_shared.txt were used. 
 
 <h3>Bugs</h3>
