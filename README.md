@@ -28,6 +28,11 @@ Command execution by user input is done in the same way as a regular shell by fo
 <h2>Features</h2>
 
 <h3>Fully Implemented</h3>
+1.Joblist
+  1. Functions for JobList: makeJobList() and freeJobList()
+2.Struct Process
+  2. 
+The job list and struct process are fully implemented. The functions to make a job list, remove, add, or traverse the job list using the process pointers are also fully implemented. The function to make a process is fully implemented. Reading the command line and parsing the arguments is fully implemented. One ampersand and one semicolon cases are fully implemented. Multiple semicolon cases are fully implemented. Creating a child process and execvp()ing the global array is also fully implemented. Signal handlers are fully implemented. 
 
 <h3>Partially Implemented</h3>
 Built-in commands are not implemented with "&" and ";".
