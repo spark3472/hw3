@@ -468,7 +468,6 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
 #endif
 
   if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
-    //printf("child ended.\n");
     //printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, SIGCONT is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP, SIGCONT);
     Process* job;
     if((job = findJob(childPid)) != NULL) {
@@ -499,6 +498,7 @@ int number;
 
 //so ctrl-z stops a process
 void handler_toChild(int signo){
+  /*printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d, \n", signo, SIGTSTP, SIGSTOP);
   if (signo == SIGTSTP){
     Process* newProcess = NULL;
     char** currentArgs = toks;
@@ -509,7 +509,7 @@ void handler_toChild(int signo){
       if (newProcess != NULL){
         push(newProcess);
       }else{
-        printf("Something wring in makeProcess\n");
+        printf("Something wrong in makeProcess\n");
         return;
       }
     }else{
@@ -517,9 +517,6 @@ void handler_toChild(int signo){
       return;
     }
 #endif
-
-    // Suspend child process
-    kill(pid, SIGTSTP);
 
     printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
     for(int i = 0; i < newProcess->numArgs; i++){
@@ -532,8 +529,21 @@ void handler_toChild(int signo){
   //kill(pid, SIGSTOP);
   kill(pid, signo);
 
-  //give terminal back to shell
-  //tcsetpgrp(STDIN_FILENO, shell_pgid);
+  */
+  tcsetpgrp(STDIN_FILENO, shell_pgid);
+  kill(pid, signo);
+  if (signo == SIGTSTP){
+    char** currentArgs = toks;
+    Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
+    push(newProcess);
+  
+    printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
+    for(int i = 0; i < newProcess->numArgs; i++){
+      printf(" %s", newProcess->argv[i]);
+    }
+    printf("\n");
+  }
+  
 }
 
 /* Put job j in the foreground.  If cont is nonzero,
@@ -596,7 +606,7 @@ int main(){
   sigemptyset(&sigset);
   
   signal(SIGTSTP, handler_toChild);
-
+  //sigaddset(&sigset, SIGTSTP);
   sigaddset(&sigset, SIGQUIT);
   sigaddset(&sigset, SIGTTIN);
   sigaddset(&sigset, SIGTTOU);
@@ -783,10 +793,12 @@ int main(){
         
         if(!background){
           tcsetpgrp(STDIN_FILENO, getpid());
+          //signal(SIGTSTP, handler_toChild);
         }
         
         //reset signal masks to default
         sigprocmask(SIG_SETMASK, &sigset_old, NULL);
+        //signal(SIGTSTP, handler_toChild);
 
         if( -1 == execvp(currentArgs[0], currentArgs) ){
           //error message for our use
