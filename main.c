@@ -555,7 +555,7 @@ void put_job_in_foreground (Process *job, int cont){
   //figure out how to send CONT if stopped
 
   /* Wait for it to report.  */
-  //waitpid(job->pid, NULL, 0);
+  waitpid(job->pid, NULL, 0);
   //remove job from joblist
   removeJob(job->pid);
 
@@ -681,7 +681,6 @@ int main(){
         }else if (strlen(toks[1]) > 0){
           memmove(&toks[1][0], &toks[1][1], strlen(toks[1] - 0));
           int jobNum = atoi(toks[1]);
-          //printList(jobList);
 
           //iterates through the list and finds the job
           Process* ptr = getJob(jobNum);
