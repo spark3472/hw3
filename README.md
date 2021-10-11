@@ -61,6 +61,7 @@ emacs, vi, and cat do not show up in the foreground of the terminal because if t
 Extra Credit is not implemented.
 
 <h2>Testing</h2>
+Tested the program by first writing smaller programs (one for joblist and another for the parser) to make sure those features were working seperately, then each time a feature was finished being implemented. Valgrind was used to check for memory leaks. Printf() debugging was also used to check for errors. <br  >
 [hw3tests_shared.txt](https://github.com/spark3472/hw3/files/7319483/hw3tests_shared.txt)
 
 
