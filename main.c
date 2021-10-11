@@ -27,6 +27,9 @@
 #define TRUE  1;
 #define FALSE 0;
 
+#define DEBUG_SIGCHLD
+#undef DEBUG_SIGCHLD
+
 enum status{BACKGROUNDED, FOREGROUNDED, SUSPENDED, TERMINATED};
 
 //signals to block in the shell
@@ -440,7 +443,10 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
   int childStatus;
   int waitResult = waitpid(childPid, &childStatus, WUNTRACED || WCONTINUED);
 
+#ifdef DEBUG_SIGCHLD
   printf("status %d, wifstopped %d, wifexited %d, wifsignaled %d, wifcontinued %d\n", childStatus, WIFSTOPPED(childStatus), WIFEXITED(childStatus), WIFSIGNALED(childStatus), WIFCONTINUED(childStatus));
+#endif
+
   if(WIFSIGNALED(childStatus) || WIFEXITED(childStatus)) {
     //printf("child ended.\n");
     printf("Stopped because of %d, SIGTSTP is %d, SIGSTOP is %d\n", WTERMSIG(childStatus), SIGTSTP, SIGSTOP);
@@ -460,10 +466,10 @@ void sigchld_handler(int signo, siginfo_t* info, void* ucontext) {
     }
   }
 
-	//remove child from job list if so
-	//check waitpid with WNOHANG to see if other children terminated (because multiple children could have terminated if SIGCHLD blocked
-
+  //remove child from job list if so
+  //check waitpid with WNOHANG to see if other children terminated (because multiple children could have terminated if SIGCHLD blocked
 }
+
 pid_t pid;
 pid_t shell_pgid;
 struct termios shellTermSettings;
@@ -473,19 +479,34 @@ int number;
 //Process* newProcess;
 //so ctrl-z stops a process
 void handler_toChild(int signo){
-  kill(pid, signo);
   if (signo == SIGTSTP){
+    Process* newProcess = NULL;
     char** currentArgs = toks;
-    Process* newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
-    push(jobList, newProcess);
-  
+
+#if 1
+    if (currentArgs != NULL){
+      newProcess = makeProcess(pid, SUSPENDED, currentArgs, number, jobList->jobsTotal+1);
+      if (newProcess != NULL){
+        push(jobList, newProcess);
+      }else{
+        printf("Something wring in makeProcess\n");
+        return;
+      }
+    }else{
+      printf("Something wrong!!\n");
+      return;
+    }
+#endif
+
+    // Suspend child process
+    kill(pid, SIGTSTP);
+
     printf("\n[%d]+ Stopped\t\t", newProcess->jobNum);
     for(int i = 0; i < newProcess->numArgs; i++){
       printf(" %s", newProcess->argv[i]);
     }
     printf("\n");
   }
-  //printf("\n");
   
   //printList(jobList);
   //put shell back in control
